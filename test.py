@@ -1,0 +1,3 @@
+import tushare
+
+print("ok!")
