@@ -24,4 +24,4 @@ for j in [1,2,3]:
     if os.path.exists(filename):
         df.to_csv(filename, mode='a', header=None, encoding='utf_8_sig')
     else:
-         df.to_csv(filename, encoding='utf_8_sig' p)
+         df.to_csv(filename, encoding='utf_8_sig')
