@@ -2,7 +2,6 @@ import numpy as np
 import pandas as pd
 import tushare as ts
 
-
 COMMON_ROOT_PATH = "../../data/Common/"
 
 pro = ts.pro_api("4b354a4846eb10e1001d4cc575ac51187aac178861d8fe1759c3c33d")
