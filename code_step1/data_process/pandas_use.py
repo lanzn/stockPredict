@@ -8,3 +8,5 @@
 # fina_indicator_date_list是一个list，该方法能把列值为列表里的值的行都筛选出来
 # selected_daily_df = daily_df.loc[daily_df["trade_date"].isin(fina_indicator_date_list)]
 
+# 删除某列值等于某值的行，~是取反的意思
+# fina_indicator_df = fina_indicator_df.loc[~(fina_indicator_df["ann_date"] == fina_indicator_date)]
