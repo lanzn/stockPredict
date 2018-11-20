@@ -1,5 +1,3 @@
-# TODO:读取所有股票，循环获取每只股票的财报
-
 import numpy as np
 import pandas as pd
 import tushare as ts
