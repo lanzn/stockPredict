@@ -131,7 +131,10 @@ def main(argv):
     predictions=classifier.predict(input_fn=lambda :eval_input_fn(valid_x,labels=None,batch_size=50))
     print("预测结果：",list(predictions)[0])
 
-    print('\nTest set accuracy: {accuracy:}\n'.format(**eval_result))
+    precision = eval_result["precision"]
+    recall = eval_result["recall"]
+    print('\nTest set auc: {auc:}\n'.format(**eval_result))
+    print('Test set f1:', 2 * precision * recall / (precision + recall))
 
 if __name__ == '__main__':
     tf.logging.set_verbosity(tf.logging.INFO)
