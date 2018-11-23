@@ -1,3 +1,5 @@
+#coding:utf-8
+#取end_date_1=20170930做筛选，然后把日期特征都去掉
 import tensorflow as tf
 import pandas as pd
 import numpy as np
@@ -11,28 +13,33 @@ parser.add_argument('--batch_size', default=100, type=int, help='batch size')
 parser.add_argument('--train_steps', default=1000, type=int,
                     help='number of training steps')
 
-#给end_date_1编码，将end_date_1作为特征之一
+
 def main(argv):
     args = parser.parse_args(argv[1:])
 
     f1=open("../../data/Train&Test/full_train_set.csv")
     data=pd.read_csv(f1)
+    data=data[data.end_date_1 == 20170930]
     datay=pd.DataFrame(data["label"])
-    dropcol=["label","ann_date_1","ann_date_2","end_date_2","ann_date_3","end_date_3","ann_date_4","end_date_4"]
+    dropcol=["label","ann_date_1","end_date_1","ann_date_2","end_date_2","ann_date_3","end_date_3","ann_date_4","end_date_4"]
     datax=data.drop(dropcol,axis=1)
-    end_date_1=pd.get_dummies(datax["end_date_1"],prefix="end_date")
-    datax=datax.drop(["end_date_1"],axis=1)
-    datax=pd.concat([datax,end_date_1],axis=1,join="outer")
+
     print(datax.shape)#440列
     f1.close()
 
+    #读取训练标签，赋予列明
+
+    #
 
 
 
     # 划分训练集，验证集
     train_x, valid_x, train_y, valid_y = train_test_split(datax, datay, test_size=0.25, random_state=100)  # 默认0.25的验证集
 
-
+    # train_x=datax[:15000]
+    # train_y=datay[:15000]
+    # valid_x=datax[15000:]
+    # valid_y=datay[15000:]
     def dataframetodict(df):
         df=df.fillna(0)
         re = {}
