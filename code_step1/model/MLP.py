@@ -18,8 +18,12 @@ def main(argv):
     f1=open("../../data/Train&Test/full_train_set.csv")
     data=pd.read_csv(f1)
     datay=pd.DataFrame(data["label"])
-    datax=data.drop(["label","ann_date_1","end_date_1","ann_date_2","end_date_2","ann_date_3","end_date_3","ann_date_4","end_date_4"],axis=1)
-    print(datax.shape)#425列
+    dropcol=["label","ann_date_1","ann_date_2","end_date_2","ann_date_3","end_date_3","ann_date_4","end_date_4"]
+    datax=data.drop(dropcol,axis=1)
+    end_date_1=pd.get_dummies(datax["end_date_1"],prefix="end_date")
+    datax=datax.drop(["end_date_1"],axis=1)
+    datax=pd.concat([datax,end_date_1],axis=1,join="outer")
+    print(datax.shape)#440列
     f1.close()
 
     #读取训练标签，赋予列明
@@ -41,7 +45,7 @@ def main(argv):
         colnames = df.columns.values.tolist()
         scaler = MinMaxScaler()
         for colname in colnames:
-            if colname=="ts_code":
+            if colname=="ts_code" or "end_date" in colname:
                 re[colname] = np.array(df[colname])
             else:
                 re[colname] = scaler.fit_transform(np.array(df[colname]).reshape(-1,1))
