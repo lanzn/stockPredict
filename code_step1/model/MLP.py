@@ -4,6 +4,7 @@ import numpy as np
 import argparse
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import train_test_split,cross_val_score
+from sklearn.utils import shuffle
 
 #
 parser = argparse.ArgumentParser()
@@ -11,7 +12,7 @@ parser.add_argument('--batch_size', default=100, type=int, help='batch size')
 parser.add_argument('--train_steps', default=1000, type=int,
                     help='number of training steps')
 
-#给end_date_1编码，将end_date_1作为特征之一
+#给end_date_1编码，将end_date_1作为特征之一  auc达到0.72，f1达到0.64
 def main(argv):
     args = parser.parse_args(argv[1:])
 

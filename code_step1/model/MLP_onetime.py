@@ -1,11 +1,13 @@
 #coding:utf-8
 #取end_date_1=20170930做筛选，然后把日期特征都去掉
+#产生样本不均衡问题，将少数类的样本重复采样
 import tensorflow as tf
 import pandas as pd
 import numpy as np
 import argparse
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import train_test_split,cross_val_score
+from sklearn.utils import shuffle
 
 #
 parser = argparse.ArgumentParser()
@@ -20,6 +22,12 @@ def main(argv):
     f1=open("../../data/Train&Test/full_train_set.csv")
     data=pd.read_csv(f1)
     data=data[data.end_date_1 == 20170930]
+    cunt=data[data.label==1].count()#221个正样本，1621总样本
+    zhengli=data[data.label==1]
+    for i in range(6):#重采样正样本
+        data=pd.concat([data,zhengli],axis=0)
+    cunt2 = data[data.label == 1].count()  # 221个正样本，1621总样本
+    data=shuffle(data)
     datay=pd.DataFrame(data["label"])
     dropcol=["label","ann_date_1","end_date_1","ann_date_2","end_date_2","ann_date_3","end_date_3","ann_date_4","end_date_4"]
     datax=data.drop(dropcol,axis=1)
