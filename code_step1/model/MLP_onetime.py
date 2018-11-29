@@ -1,11 +1,13 @@
 #coding:utf-8
 #取end_date_1=20170930做筛选，然后把日期特征都去掉
+#产生样本不均衡问题，将少数类的样本重复采样
 import tensorflow as tf
 import pandas as pd
 import numpy as np
 import argparse
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import train_test_split,cross_val_score
+from sklearn.utils import shuffle
 
 #
 parser = argparse.ArgumentParser()
@@ -27,19 +29,20 @@ def main(argv):
     print(datax.shape)#440列
     f1.close()
 
-    #读取训练标签，赋予列明
-
-    #
 
 
 
     # 划分训练集，验证集
     train_x, valid_x, train_y, valid_y = train_test_split(datax, datay, test_size=0.25, random_state=100)  # 默认0.25的验证集
+    traindata=pd.concat([train_x,train_y],axis=1)
+    cunt = traindata[traindata.label == 1].count()  # 176个正样本，1215总样本
+    zhengli = traindata[traindata.label == 1]
+    for i in range(5):  # 重采样正样本
+        traindata = pd.concat([traindata, zhengli], axis=0)
+    cunt2 = traindata[traindata.label == 1].count()
+    train_y=pd.DataFrame(traindata["label"])
+    train_x=traindata.drop(["label"],axis=1)
 
-    # train_x=datax[:15000]
-    # train_y=datay[:15000]
-    # valid_x=datax[15000:]
-    # valid_y=datay[15000:]
     def dataframetodict(df):
         df=df.fillna(0)
         re = {}
@@ -138,7 +141,10 @@ def main(argv):
     predictions=classifier.predict(input_fn=lambda :eval_input_fn(valid_x,labels=None,batch_size=50))
     print("预测结果：",list(predictions)[0])
 
-    print('\nTest set accuracy: {accuracy:}\n'.format(**eval_result))
+    precision=eval_result["precision"]
+    recall=eval_result["recall"]
+    print('\nTest set auc: {auc:}\n'.format(**eval_result))
+    print('Test set f1:', 2 * precision * recall / (precision + recall))
 
 if __name__ == '__main__':
     tf.logging.set_verbosity(tf.logging.INFO)
