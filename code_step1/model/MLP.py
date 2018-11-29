@@ -26,6 +26,7 @@ def main(argv):
     dropcol=["label","ann_date_1","ann_date_2","end_date_2","ann_date_3","end_date_3","ann_date_4","end_date_4"]
     datax=data.drop(dropcol,axis=1)
 
+    # 加以区分SH和SZ的股票
     datax["type"]=datax["ts_code"].map(lambda x:'SZ' if 'SZ' in x else 'SH')
     stocktype=pd.get_dummies(datax["type"],prefix="type")
     datax = datax.drop(["type"], axis=1)

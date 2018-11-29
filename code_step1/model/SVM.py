@@ -21,7 +21,7 @@ def processData(f1):
                "end_date_4"]
     datax = data.drop(dropcol, axis=1)
 
-
+    #加以区分SH和SZ的股票
     stocktype=pd.get_dummies(datax["type"],prefix="type")
     datax = datax.drop(["type"], axis=1)
     datax = pd.concat([datax, stocktype], axis=1, join="outer")
