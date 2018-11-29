@@ -22,12 +22,6 @@ def main(argv):
     f1=open("../../data/Train&Test/full_train_set.csv")
     data=pd.read_csv(f1)
     data=data[data.end_date_1 == 20170930]
-    cunt=data[data.label==1].count()#221个正样本，1621总样本
-    zhengli=data[data.label==1]
-    for i in range(6):#重采样正样本
-        data=pd.concat([data,zhengli],axis=0)
-    cunt2 = data[data.label == 1].count()  # 221个正样本，1621总样本
-    data=shuffle(data)
     datay=pd.DataFrame(data["label"])
     dropcol=["label","ann_date_1","end_date_1","ann_date_2","end_date_2","ann_date_3","end_date_3","ann_date_4","end_date_4"]
     datax=data.drop(dropcol,axis=1)
@@ -40,6 +34,14 @@ def main(argv):
 
     # 划分训练集，验证集
     train_x, valid_x, train_y, valid_y = train_test_split(datax, datay, test_size=0.25, random_state=100)  # 默认0.25的验证集
+    traindata=pd.concat([train_x,train_y],axis=1)
+    cunt = traindata[traindata.label == 1].count()  # 176个正样本，1215总样本
+    zhengli = traindata[traindata.label == 1]
+    for i in range(5):  # 重采样正样本
+        traindata = pd.concat([traindata, zhengli], axis=0)
+    cunt2 = traindata[traindata.label == 1].count()
+    train_y=pd.DataFrame(traindata["label"])
+    train_x=traindata.drop(["label"],axis=1)
 
     def dataframetodict(df):
         df=df.fillna(0)

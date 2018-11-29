@@ -16,14 +16,25 @@ parser.add_argument('--train_steps', default=1000, type=int,
 def main(argv):
     args = parser.parse_args(argv[1:])
 
+
     f1=open("../../data/Train&Test/full_train_set.csv")
     data=pd.read_csv(f1)
+    # data["ts_code"].astype(str)
+    # data = data[data.ts_code.str.find('SH') > 0]
+    cunt = data[data.label == 1].count()
     datay=pd.DataFrame(data["label"])
     dropcol=["label","ann_date_1","ann_date_2","end_date_2","ann_date_3","end_date_3","ann_date_4","end_date_4"]
     datax=data.drop(dropcol,axis=1)
+
+    datax["type"]=datax["ts_code"].map(lambda x:'SZ' if 'SZ' in x else 'SH')
+    stocktype=pd.get_dummies(datax["type"],prefix="type")
+    datax = datax.drop(["type"], axis=1)
+    datax = pd.concat([datax, stocktype], axis=1, join="outer")
+
     end_date_1=pd.get_dummies(datax["end_date_1"],prefix="end_date")
     datax=datax.drop(["end_date_1"],axis=1)
     datax=pd.concat([datax,end_date_1],axis=1,join="outer")
+    print(datax.info())
     print(datax.shape)#440列
     f1.close()
 
@@ -40,7 +51,7 @@ def main(argv):
         colnames = df.columns.values.tolist()
         scaler = MinMaxScaler()
         for colname in colnames:
-            if colname=="ts_code" or "end_date" in colname:
+            if colname=="ts_code" or "end_date"  in colname or "type" in colname:
                 re[colname] = np.array(df[colname])
             else:
                 re[colname] = scaler.fit_transform(np.array(df[colname]).reshape(-1,1))
@@ -55,6 +66,10 @@ def main(argv):
             column1=tf.feature_column.categorical_column_with_hash_bucket(key="ts_code",hash_bucket_size = 30)
             column1=tf.feature_column.indicator_column(column1)
             my_feature_columns.append(column1)
+        # elif key=="type":
+        #     column2=tf.feature_column.categorical_column_with_vocabulary_list(key="type",vocabulary_list=["SZ", "SH"])
+        #     column2 = tf.feature_column.indicator_column(column2)
+        #     my_feature_columns.append(column2)
         else:
             col=tf.feature_column.numeric_column(key=key)
             my_feature_columns.append(col)
@@ -115,10 +130,12 @@ def main(argv):
         # optimizer=tf.train.AdamOptimizer(
         #     learning_rate=1e-7
         # ),
-        # model_dir="./model",
+        model_dir="./MLP_hash=30_batch=50_epoch=5000_shsz",
         # config=my_checkpointing_config,
     )
             #model_dir="./model")
+
+
 
         # Train the Model.
     classifier.train(
