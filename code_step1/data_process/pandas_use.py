@@ -10,3 +10,6 @@
 
 # 删除某列值等于某值的行，~是取反的意思
 # fina_indicator_df = fina_indicator_df.loc[~(fina_indicator_df["ann_date"] == fina_indicator_date)]
+
+# numpy的reshape，-1表示留空，第一位表示行数，第二位表示列数，下面的形式表示把数据变成一列
+# data["label"].values.reshape(-1, 1)
