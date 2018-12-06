@@ -23,11 +23,13 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.decomposition import PCA
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.feature_selection import VarianceThreshold
 from sklearn.metrics import classification_report, f1_score, roc_auc_score, accuracy_score
 from sklearn.externals import joblib
 from sklearn.preprocessing import StandardScaler
 
 import matplotlib.pyplot as plt
+from sklearn.datasets import load_iris
 
 FULL_TRAIN_TEST_DATASET_PATH = "../../data/Train&Test/full_train_set.csv"
 
@@ -83,13 +85,28 @@ def pca_method(data_x, data_y, feat_labels, pca_threshold, is_auto=1):
         pca = PCA(n_components=pca_threshold, whiten=False)
     pca_data_x = pca.fit(data_x_mid).transform(data_x_mid)
     print(pca.explained_variance_ratio_)
-    data_x = np.hstack((onehot_data_x_left, pca_data_x))
-    data_x = np.hstack((data_x, onehot_data_x_right))
-    return data_x, data_y
+    # data_x = np.hstack((onehot_data_x_left, pca_data_x))
+    # data_x = np.hstack((data_x, onehot_data_x_right))
+    return pca_data_x, data_y
 
 
 def correlation_method(data_x, data_y, feat_labels):
+    # 缺失值填充
+    # data_x = data_x.fillna(data_x.mean())
+    data_x = data_x.fillna(0)
+    data_x = data_x.values
+    # 归一化，之前必须保证没有空值，之后自动变成ndarray
+    # scaler = MinMaxScaler()
+    # data_x = scaler.fit_transform(data_x)
+    # dataframe变成没有标签的ndarray，以便可以输入模型
+    data_y = data_y.values
+
+    # iris = load_iris()
+    # aaa = iris.data
+    aaa = VarianceThreshold(50).fit(data_x)
+    data_x_new = VarianceThreshold(50).fit_transform(data_x)
     importance_dict = {}
+
     return importance_dict
 
 
@@ -151,8 +168,8 @@ if __name__ == '__main__':
     feat_labels = data_x.columns.values.tolist()
 
     # PCA，返回的数据中，数值型列没有再次进行归一化
-    data_x_pca, data_y_pca = pca_method(data_x, data_y, feat_labels, 10, is_auto=0)
-    # correlation_importance_dict = correlation_method(data_x, data_y, feat_labels)
+    # data_x_pca, data_y_pca = pca_method(data_x, data_y, feat_labels, 10, is_auto=0)
+    correlation_importance_dict = correlation_method(data_x, data_y, feat_labels)
     # factor_analysis_importance_dict = factor_analysis_method(data_x, data_y, feat_labels)
     # ga_importance_dict = ga_method(data_x, data_y, feat_labels)
     # 使用随机森林进行特征选择
