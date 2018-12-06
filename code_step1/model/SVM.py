@@ -29,12 +29,12 @@ def processData(f1):
     end_date_1 = pd.get_dummies(datax["end_date_1"], prefix="end_date")
     datax = datax.drop(["end_date_1"], axis=1)
     datax = pd.concat([datax, end_date_1], axis=1, join="outer")
-    datax=datax.fillna(0)
+    #datax=datax.fillna(0)
     f1.close()
     return datax,datay,data
 
 if __name__ == '__main__':
-    f1 = open("../../data/Train&Test/full_train_set.csv")
+    f1 = open("../../data/Train&Test/full_train_set_normal_4.csv")
     datax,datay,data=processData(f1)
     datax=np.array(datax)
     datay=np.array(datay)
@@ -49,7 +49,7 @@ if __name__ == '__main__':
 
     clf=SVC(gamma=1,kernel="rbf",C=1)
     clf.fit(train_x,train_y)
-    joblib.dump(clf, "./svm_model/model_qufenszsh.m")
+    joblib.dump(clf, "./svm_model/model_qufenszsh_normal_4.m")
     # print(clf.best_params_, clf.best_score_)
     valid_pre=clf.predict(valid_x)
     confmat=classification_report(y_true=valid_y,y_pred=valid_pre)
