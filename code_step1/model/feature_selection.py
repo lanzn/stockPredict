@@ -14,7 +14,7 @@
 
 # TODO:特征工程顺序---数据清洗，（离群点），正态化，标准化，归一化，特征选择
 # PCA降维时，既有onehot特征，又有连续型特征，可以吗？尝试了先把onehot出来的先分出来，剩余特征降维之后再拼上的方案。
-
+#
 
 import pandas as pd
 import numpy as np
@@ -23,7 +23,11 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.decomposition import PCA
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.feature_selection import VarianceThreshold
+from sklearn.feature_selection import VarianceThreshold, SelectKBest, chi2
+from sklearn.decomposition import FactorAnalysis
+from minepy import MINE
+from scipy.stats import pearsonr
+
 from sklearn.metrics import classification_report, f1_score, roc_auc_score, accuracy_score
 from sklearn.externals import joblib
 from sklearn.preprocessing import StandardScaler
@@ -62,7 +66,7 @@ def process_data():
     return data_x, data_y, data
 
 
-def pca_method(data_x, data_y, feat_labels, pca_threshold, is_auto=1):
+def pca_method(data_x, data_y, feat_labels, pca_threshold, is_auto=1, is_split=1):
     # 缺失值填充
     # data_x = data_x.fillna(data_x.mean())
     data_x = data_x.fillna(0)
@@ -73,10 +77,13 @@ def pca_method(data_x, data_y, feat_labels, pca_threshold, is_auto=1):
     # dataframe变成没有标签的ndarray，以便可以输入模型
     data_y = data_y.values
 
-    # 先把onehot列单独拿出来
-    onehot_data_x_left = data_x[:, :30]
-    data_x_mid = data_x[:, 30:454]
-    onehot_data_x_right = data_x[:, 454:]
+    if is_split == 1:
+        # 先把onehot列单独拿出来
+        # onehot_data_x_left = data_x[:, :30]
+        data_x_mid = data_x[:, 30:454]
+        # onehot_data_x_right = data_x[:, 454:]
+    else:
+        data_x_mid = data_x
 
     # PCA
     if is_auto == 1:
@@ -85,12 +92,100 @@ def pca_method(data_x, data_y, feat_labels, pca_threshold, is_auto=1):
         pca = PCA(n_components=pca_threshold, whiten=False)
     pca_data_x = pca.fit(data_x_mid).transform(data_x_mid)
     print(pca.explained_variance_ratio_)
+
+    # 拼接成原数据集
     # data_x = np.hstack((onehot_data_x_left, pca_data_x))
     # data_x = np.hstack((data_x, onehot_data_x_right))
+
     return pca_data_x, data_y
 
 
-def correlation_method(data_x, data_y, feat_labels):
+def factor_analysis_method(data_x, data_y, feat_labels, fa_threshold, is_split=1):
+    # 缺失值填充
+    # data_x = data_x.fillna(data_x.mean())
+    data_x = data_x.fillna(0)
+    data_x = data_x.values
+    # 归一化，之前必须保证没有空值，之后自动变成ndarray
+    scaler = MinMaxScaler()
+    data_x = scaler.fit_transform(data_x)
+    # dataframe变成没有标签的ndarray，以便可以输入模型
+    data_y = data_y.values
+
+    if is_split == 1:
+        # 先把onehot列单独拿出来
+        # onehot_data_x_left = data_x[:, :30]
+        data_x_mid = data_x[:, 30:454]
+        # onehot_data_x_right = data_x[:, 454:]
+    else:
+        data_x_mid = data_x
+
+    # factor_analysis
+    fa = FactorAnalysis(n_components=fa_threshold)
+    fa_data_x = fa.fit(data_x_mid).transform(data_x_mid)
+    print(fa.components_)
+    print(fa.loglike_)
+
+    return fa_data_x, data_y
+
+
+def chi_method(data_x, data_y, feat_labels, chi_threshold, is_split=1):
+    # 缺失值填充
+    # data_x = data_x.fillna(data_x.mean())
+    data_x = data_x.fillna(0)
+    data_x = data_x.values
+    # 归一化，之前必须保证没有空值，之后自动变成ndarray
+    scaler = MinMaxScaler()
+    data_x = scaler.fit_transform(data_x)
+    # dataframe变成没有标签的ndarray，以便可以输入模型
+    data_y = data_y.values
+
+    if is_split == 1:
+        # 先把onehot列单独拿出来
+        # onehot_data_x_left = data_x[:, :30]
+        data_x_mid = data_x[:, 30:454]
+        # onehot_data_x_right = data_x[:, 454:]
+    else:
+        data_x_mid = data_x
+
+    # 卡方检验法，注意，这个是针对分类问题使用的
+    # 选择K个最好的特征，返回选择特征后的数据
+    xxx = SelectKBest(chi2, k=chi_threshold).fit(data_x_mid, data_y)
+    selected_data_x = SelectKBest(chi2, k=chi_threshold).fit_transform(data_x_mid, data_y)
+    return selected_data_x, data_y
+
+
+def mic_method(data_x, data_y, feat_labels, mic_threshold, is_split=1):
+    # 缺失值填充
+    # data_x = data_x.fillna(data_x.mean())
+    data_x = data_x.fillna(0)
+    data_x = data_x.values
+    # 归一化，之前必须保证没有空值，之后自动变成ndarray
+    scaler = MinMaxScaler()
+    data_x = scaler.fit_transform(data_x)
+    # dataframe变成没有标签的ndarray，以便可以输入模型
+    data_y = data_y.values
+
+    if is_split == 1:
+        # 先把onehot列单独拿出来
+        # onehot_data_x_left = data_x[:, :30]
+        data_x_mid = data_x[:, 30:454]
+        # onehot_data_x_right = data_x[:, 454:]
+    else:
+        data_x_mid = data_x
+
+    # 最大信息系数法，注意，这个是针对分类问题使用的
+    # 选择K个最好的特征，返回选择特征后的数据
+    m = MINE()
+    x = np.random.uniform(-1, 1, 10000)
+    # m.compute_score(x, x ** 2)
+    m.compute_score(data_x_mid, data_y)
+    print(m.mic())
+    xxx = SelectKBest(chi2, k=mic_threshold).fit(data_x_mid, data_y)
+    selected_data_x = SelectKBest(chi2, k=mic_threshold).fit_transform(data_x_mid, data_y)
+    return selected_data_x, data_y
+
+
+def correlation_method(data_x, data_y, feat_labels, select_type=3, is_split=1):
     # 缺失值填充
     # data_x = data_x.fillna(data_x.mean())
     data_x = data_x.fillna(0)
@@ -101,18 +196,32 @@ def correlation_method(data_x, data_y, feat_labels):
     # dataframe变成没有标签的ndarray，以便可以输入模型
     data_y = data_y.values
 
-    # iris = load_iris()
-    # aaa = iris.data
-    aaa = VarianceThreshold(50).fit(data_x)
-    data_x_new = VarianceThreshold(50).fit_transform(data_x)
-    importance_dict = {}
+    if is_split == 1:
+        # 先把onehot列单独拿出来
+        onehot_data_x_left = data_x[:, :30]
+        data_x_mid = data_x[:, 30:454]
+        onehot_data_x_right = data_x[:, 454:]
+    else:
+        data_x_mid = data_x
 
-    return importance_dict
+    if select_type == 1:
+        # 方差选择法
+        # 原理：方差太低说明该列数据没有区分性，所以要删掉方差太小的特征
+        # 情况：不归一化的话，方差都特大，筛不掉多少。归一化以后，方差都特小，全被筛掉了。正常数据好像是不归一化。
+        selected_data_x = VarianceThreshold(0.001).fit(data_x_mid)
+        vs = selected_data_x.variances_
+        print(selected_data_x.variances_)
+        selected_data_x = selected_data_x.transform(data_x_mid)
+        print("Done")
+    elif select_type == 2:
+        # 相关系数法，注意，这个是针对回归问题使用的
+        selected_data_x = SelectKBest(lambda X, Y: np.array(list(map(lambda x: pearsonr(x, Y), X.T))).T, k=10)\
+            .fit_transform(data_x_mid, data_y)
+    else:
+        # 互信息法
+        selected_data_x = 0
 
-
-def factor_analysis_method(data_x, data_y, feat_labels):
-    importance_dict = {}
-    return importance_dict
+    return selected_data_x, data_y
 
 
 def ga_method(data_x, data_y, feat_labels):
@@ -167,12 +276,29 @@ if __name__ == '__main__':
     # 获取所有特征名
     feat_labels = data_x.columns.values.tolist()
 
+    # 以下各特征选择方法函数的参数解释:
+    # data_x, data_y 是dataframe类型的数据
+    # feat_labels 是特征名列表
+    # is_auto=1 表示让算法自动决定保留的特征数
+    # is_split=1 表示对输入的data_x切割出连续型特征列，否则为不切割全部使用
+
     # PCA，返回的数据中，数值型列没有再次进行归一化
-    # data_x_pca, data_y_pca = pca_method(data_x, data_y, feat_labels, 10, is_auto=0)
-    correlation_importance_dict = correlation_method(data_x, data_y, feat_labels)
-    # factor_analysis_importance_dict = factor_analysis_method(data_x, data_y, feat_labels)
-    # ga_importance_dict = ga_method(data_x, data_y, feat_labels)
+    data_x_pca, data_y_pca = pca_method(data_x, data_y, feat_labels, 10, is_auto=0, is_split=1)
+
+    # 卡方检验
+    data_x_chi, data_y_chi = chi_method(data_x, data_y, feat_labels, 10, is_split=1)
+
+    # 因子分析
+    data_x_fa, data_y_fa = factor_analysis_method(data_x, data_y, feat_labels, 10, is_split=1)
+
+    # 以下有bug
+    # 最大信息系数
+    # data_x_mic, data_y_mic = mic_method(data_x, data_y, feat_labels, 10, is_split=1)
+    # 其他相关性方法
+    # correlation_importance_dict = correlation_method(data_x, data_y, feat_labels, select_type=1, is_split=1)
     # 使用随机森林进行特征选择
     # random_forest_importance_dict = random_forest_method(data_x, data_y, feat_labels)
+    # 使用遗传算法
+    # ga_importance_dict = ga_method(data_x, data_y, feat_labels)
 
     print("Done")
