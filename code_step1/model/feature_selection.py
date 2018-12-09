@@ -14,7 +14,7 @@
 
 # TODO:特征工程顺序---数据清洗，（离群点），正态化，标准化，归一化，特征选择
 # PCA降维时，既有onehot特征，又有连续型特征，可以吗？尝试了先把onehot出来的先分出来，剩余特征降维之后再拼上的方案。
-#
+
 
 import pandas as pd
 import numpy as np
@@ -122,9 +122,6 @@ def factor_analysis_method(data_x, data_y, feat_labels, fa_threshold, is_split=1
     # factor_analysis
     fa = FactorAnalysis(n_components=fa_threshold)
     fa_data_x = fa.fit(data_x_mid).transform(data_x_mid)
-    print(fa.components_)
-    print(fa.loglike_)
-
     return fa_data_x, data_y
 
 
@@ -143,14 +140,47 @@ def chi_method(data_x, data_y, feat_labels, chi_threshold, is_split=1):
         # 先把onehot列单独拿出来
         # onehot_data_x_left = data_x[:, :30]
         data_x_mid = data_x[:, 30:454]
+        feat_labels = feat_labels[30:454]
         # onehot_data_x_right = data_x[:, 454:]
     else:
         data_x_mid = data_x
 
     # 卡方检验法，注意，这个是针对分类问题使用的
     # 选择K个最好的特征，返回选择特征后的数据
-    xxx = SelectKBest(chi2, k=chi_threshold).fit(data_x_mid, data_y)
+    temp_result = SelectKBest(chi2, k=chi_threshold).fit(data_x_mid, data_y)
+    selected_index_list = temp_result.get_support(indices=True)
+    score_list = temp_result.scores_.tolist()
+    score_dict = {}
+    for index, label in enumerate(feat_labels):
+        print(str(index) + " : " + str(label))
+        score_dict[label] = score_list[index]
+    sorted_score_dict = sorted(score_dict.items(), key=lambda item: item[1], reverse=True)
     selected_data_x = SelectKBest(chi2, k=chi_threshold).fit_transform(data_x_mid, data_y)
+
+    # threshold=10时，选到的特征为[5,16,80,186,292,320,321,332,334,398]
+    # surplus_rese_ps_1
+    # assert_turn_1
+    # fixed_assets_1
+    # fixed_assets_2
+    # fixed_assets_3
+    # total_revenue_ps_4
+    # revenue_ps_4
+    # ca_turn_4
+    # assets_turn_4
+    # fixed_assets_4
+
+    # 排序后的特征为
+    # 'ca_turn_4' :             10.706118228843835      流动资产周转率_4
+    # 'assets_turn_4' :         7.817477658077262       总资产周转率_4
+    # 'total_revenue_ps_4' :    5.123831282832661       每股营业总收入_4
+    # 'revenue_ps_4' :          5.096661116892932       每股营业收入_4
+    # 'assets_turn_1' :         3.3288899118747106      总资产周转率_1
+    # 'fixed_assets_2' :        3.285283662717915       固定资产合计_2
+    # 'fixed_assets_4' :        3.273297318316537       固定资产合计_4
+    # 'fixed_assets_3' :        3.0832010142106023      固定资产合计_3
+    # 'fixed_assets_1' :        3.024284732108817       固定资产合计_1
+    # 'surplus_rese_ps_1' :     2.9725377340171093      每股盈余公积_1
+
     return selected_data_x, data_y
 
 
