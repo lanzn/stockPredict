@@ -1,8 +1,16 @@
+###### 对原数据进行归一化Normalizer
+###### Normalizer是以行 来处理量纲不统一问题
+###### MinMax和0均值标准化StandardScaler 都是以列 来处理量纲不统一问题
+
+
+
 import tensorflow as tf
 import pandas as pd
 import numpy as np
 import argparse
 from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import Normalizer
+from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split,cross_val_score
 from sklearn.utils import shuffle
 from sklearn import preprocessing
@@ -14,16 +22,14 @@ parser.add_argument('--train_steps', default=1000, type=int,
                     help='number of training steps')
 
 File1="../../data/Train&Test/full_train_set.csv"
-File2="../../data/Train&Test/full_train_set_normal.csv"
-File3="../../data/Train&Test/full_train_set_normal_2.csv"
-File4="../../data/Train&Test/full_train_set_normal_3.csv"
-File5="../../data/Train&Test/full_train_set_normal_4.csv"
+File2="../../data/Train&Test/full_train_set_boxcox.csv"
+
 
 #给end_date_1编码，将end_date_1作为特征之一  auc达到0.72，f1达到0.64
 def main(argv):
     args = parser.parse_args(argv[1:])
 
-    f1=open(File1)
+    f1=open(File2)
     #f1=open("../../data/Train&Test/full_train_set_boxcox.csv")
     data=pd.read_csv(f1)
     # data["ts_code"].astype(str)
@@ -57,12 +63,11 @@ def main(argv):
         df=df.fillna(0)
         re = {}
         colnames = df.columns.values.tolist()
-        scaler = MinMaxScaler()
         for colname in colnames:
             if colname=="ts_code" or "end_date"  in colname or "type" in colname:
                 re[colname] = np.array(df[colname])
             else:
-                re[colname] = scaler.fit_transform(np.array(df[colname]).reshape(-1,1))
+                re[colname] = Normalizer().fit_transform(np.array(df[colname]).reshape(-1,1))
                 #re[colname] = preprocessing.scale(np.array(df[colname]).reshape(-1,1))
         return re
     #train_x=dataframetodict(train_x)
@@ -139,7 +144,7 @@ def main(argv):
         # optimizer=tf.train.AdamOptimizer(
         #     learning_rate=1e-7
         # ),
-        model_dir="./MLP_hash=30_batch=50_epoch=5000_shsz",
+        model_dir="./MLP_hash=30_batch=50_epoch=5000_shsz_boxcox_normalizer",
         # config=my_checkpointing_config,
     )
             #model_dir="./model")
@@ -156,6 +161,13 @@ def main(argv):
 
 
     predictions=classifier.predict(input_fn=lambda :eval_input_fn(valid_x,labels=None,batch_size=50))
+    predictions = list(predictions)
+    pre = []
+    for i in predictions:
+        pre.append(int(i["class_ids"][0]))
+    pre = np.array(pre)
+    confmat = classification_report(y_true=valid_y, y_pred=pre)
+    print(confmat)
     print("预测结果：",list(predictions)[0])
 
     precision = eval_result["precision"]

@@ -6,6 +6,7 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import train_test_split,cross_val_score
 from sklearn.utils import shuffle
 from sklearn import preprocessing
+from sklearn.metrics import classification_report,f1_score,roc_auc_score,accuracy_score
 
 #
 parser = argparse.ArgumentParser()
@@ -23,8 +24,8 @@ File5="../../data/Train&Test/full_train_set_normal_4.csv"
 def main(argv):
     args = parser.parse_args(argv[1:])
 
-    f1=open(File1)
-    #f1=open("../../data/Train&Test/full_train_set_boxcox.csv")
+    #f1=open(File1)
+    f1=open("../../data/Train&Test/full_train_set_boxcox.csv")
     data=pd.read_csv(f1)
     # data["ts_code"].astype(str)
     # data = data[data.ts_code.str.find('SH') > 0]
@@ -139,7 +140,7 @@ def main(argv):
         # optimizer=tf.train.AdamOptimizer(
         #     learning_rate=1e-7
         # ),
-        model_dir="./MLP_hash=30_batch=50_epoch=5000_shsz",
+        #model_dir="./MLP_hash=30_batch=50_epoch=5000_shsz",
         # config=my_checkpointing_config,
     )
             #model_dir="./model")
@@ -147,15 +148,25 @@ def main(argv):
 
 
         # Train the Model.
-    classifier.train(
-            input_fn=lambda :train_input_fn(train_x,np.array(train_y),50),steps=5000)
+    # classifier.train(
+    #         input_fn=lambda :train_input_fn(train_x,np.array(train_y),50),steps=5000)
 
         # Evaluate the model.
     eval_result = classifier.evaluate(
-            input_fn=lambda :eval_input_fn(valid_x,np.array(valid_y),50))
+            input_fn=lambda :eval_input_fn(valid_x,np.array(valid_y),50),
+            checkpoint_path="./MLP_hash=30_batch=50_epoch=5000_shsz_boxcox/model.ckpt-5000"
+    )
 
 
-    predictions=classifier.predict(input_fn=lambda :eval_input_fn(valid_x,labels=None,batch_size=50))
+    predictions=classifier.predict(input_fn=lambda :eval_input_fn(valid_x,labels=None,batch_size=50),
+                                   checkpoint_path="./MLP_hash=30_batch=50_epoch=5000_shsz_boxcox/model.ckpt-5000")
+    predictions=list(predictions)
+    pre=[]
+    for i in predictions:
+        pre.append(int(i["class_ids"][0]))
+    pre=np.array(pre)
+    confmat = classification_report(y_true=valid_y, y_pred=pre)
+    print(confmat)
     print("预测结果：",list(predictions)[0])
 
     precision = eval_result["precision"]

@@ -71,7 +71,34 @@ def pca_method(data_x, data_y, feat_labels, pca_threshold, is_auto=1):
     # dataframe变成没有标签的ndarray，以便可以输入模型
     data_y = data_y.values
 
-    # 先把onehot列单独拿出来
+    # #先把onehot列单独拿出来
+    # onehot_data_x_left = data_x[:, :30]
+    # data_x_mid = data_x[:, 30:454]
+    # onehot_data_x_right = data_x[:, 454:]
+
+    # PCA
+    if is_auto == 1:
+        pca = PCA(n_components='mle', whiten=False)
+    else:
+        pca = PCA(n_components=pca_threshold, whiten=False)
+    pca_data_x = pca.fit(data_x).transform(data_x)
+    print(pca.explained_variance_ratio_)
+    # data_x = np.hstack((onehot_data_x_left, pca_data_x))
+    # data_x = np.hstack((data_x, onehot_data_x_right))
+    return pca_data_x, data_y
+
+def pca_method_SVM(data_x, data_y, feat_labels, pca_threshold, is_auto=1):
+    # 缺失值填充
+    # data_x = data_x.fillna(data_x.mean())
+    data_x = data_x.fillna(0)
+    data_x = data_x.values
+    # 归一化，之前必须保证没有空值，之后自动变成ndarray
+    scaler = MinMaxScaler()
+    data_x = scaler.fit_transform(data_x)
+    # dataframe变成没有标签的ndarray，以便可以输入模型
+    data_y = data_y.values
+
+    #先把onehot列单独拿出来
     onehot_data_x_left = data_x[:, :30]
     data_x_mid = data_x[:, 30:454]
     onehot_data_x_right = data_x[:, 454:]
