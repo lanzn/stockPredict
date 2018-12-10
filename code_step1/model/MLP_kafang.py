@@ -45,16 +45,16 @@ def main(argv):
                "ann_date_4","end_date_4"]
     data_x = data.drop(dropcol, axis=1)
     feat_labels = data_x.columns.values.tolist()
-    data_x_pca, data_y_pca = feature_selection.pca_method(data_x, datay, feat_labels, 10, is_auto=0)
+    data_x_chi, data_y_chi = feature_selection.chi_method(data_x, datay, feat_labels,10, is_split=0)
 
     ndcol=[]
     for i in range(10):
-        s="feature_pca_"+str(i)
+        s="feature_chi_"+str(i)
         ndcol.append(s)
 
-    data_x_pca=pd.DataFrame(data_x_pca,columns=ndcol)
+    data_x_chi=pd.DataFrame(data_x_chi,columns=ndcol)
 
-    datax=pd.concat([ts_code,stocktype,end_date_1,data_x_pca],axis=1)
+    datax=pd.concat([ts_code,stocktype,end_date_1,data_x_chi],axis=1)
 
 
     f1.close()
@@ -153,7 +153,7 @@ def main(argv):
         # optimizer=tf.train.AdamOptimizer(
         #     learning_rate=1e-7
         # ),
-        #model_dir="./MLP_hash=30_batch=50_epoch=5000_shsz_boxcox_pca",
+        model_dir="./MLP_hash=30_batch=50_epoch=5000_shsz_chi",
         # config=my_checkpointing_config,
     )
             #model_dir="./model")
