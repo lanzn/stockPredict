@@ -172,7 +172,7 @@ def train_data_concator():
             print(stock_code + " error!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
             print(e)
             continue
-    full_train_df.to_csv(TRAIN_TEST_ROOT_PATH + "full_train_set.csv", index=False, index_label=False)
+    full_train_df.to_csv(TRAIN_TEST_ROOT_PATH + "full_train_set_one_season.csv", index=False, index_label=False)
 
 
 selected_stock_traverse()
