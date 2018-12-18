@@ -162,7 +162,7 @@ def financial_data_processor(stock_code, data_type):
         else:
             financial_record_file = open(FINANCIAL_REPORT_ROOT_PATH + "fina_mainbz/" + "Data_record", "a")
 
-        financial_record_file.write(stock_code + " " + now_time + " Error : " + e + "\n")
+        financial_record_file.write(stock_code + " " + now_time + " Error" + "\n")
         financial_record_file.close()
         time.sleep(1.5)
 
@@ -171,39 +171,46 @@ def financial_data_traverse(data_type):
     selected_stock_df = pd.read_csv(COMMON_ROOT_PATH + "selected_stock.csv")
     selected_stock_list = selected_stock_df.loc[:, "ts_code"].tolist()
     # 读取记录文件，实现断点续传
-    if data_type == 1:
-        finished_df = pd.read_csv(FINANCIAL_REPORT_ROOT_PATH + "income/" + "Data_record",
-                                  sep=" ", header=None)
-    elif data_type == 2:
-        finished_df = pd.read_csv(FINANCIAL_REPORT_ROOT_PATH + "balancesheet/" + "Data_record",
-                                  sep=" ", header=None)
-    elif data_type == 3:
-        finished_df = pd.read_csv(FINANCIAL_REPORT_ROOT_PATH + "cashflow/" + "Data_record",
-                                  sep=" ", header=None)
-    elif data_type == 4:
-        finished_df = pd.read_csv(FINANCIAL_REPORT_ROOT_PATH + "forecast/" + "Data_record",
-                                  sep=" ", header=None)
-    elif data_type == 5:
-        finished_df = pd.read_csv(FINANCIAL_REPORT_ROOT_PATH + "express/" + "Data_record",
-                                  sep=" ", header=None)
-    elif data_type == 6:
-        finished_df = pd.read_csv(FINANCIAL_REPORT_ROOT_PATH + "dividend/" + "Data_record",
-                                  sep=" ", header=None)
-    elif data_type == 7:
-        finished_df = pd.read_csv(FINANCIAL_REPORT_ROOT_PATH + "fina_indicator/" + "Data_record",
-                                  sep=" ", header=None)
-    elif data_type == 8:
-        finished_df = pd.read_csv(FINANCIAL_REPORT_ROOT_PATH + "fina_audit/" + "Data_record",
-                                  sep=" ", header=None)
-    else:
-        finished_df = pd.read_csv(FINANCIAL_REPORT_ROOT_PATH + "fina_mainbz/" + "Data_record",
-                                  sep=" ", header=None)
+    try:
+        if data_type == 1:
+            finished_df = pd.read_csv(FINANCIAL_REPORT_ROOT_PATH + "income/" + "Data_record",
+                                      sep=" ", header=None)
+        elif data_type == 2:
+            finished_df = pd.read_csv(FINANCIAL_REPORT_ROOT_PATH + "balancesheet/" + "Data_record",
+                                      sep=" ", header=None)
+        elif data_type == 3:
+            finished_df = pd.read_csv(FINANCIAL_REPORT_ROOT_PATH + "cashflow/" + "Data_record",
+                                      sep=" ", header=None)
+        elif data_type == 4:
+            finished_df = pd.read_csv(FINANCIAL_REPORT_ROOT_PATH + "forecast/" + "Data_record",
+                                      sep=" ", header=None)
+        elif data_type == 5:
+            finished_df = pd.read_csv(FINANCIAL_REPORT_ROOT_PATH + "express/" + "Data_record",
+                                      sep=" ", header=None)
+        elif data_type == 6:
+            finished_df = pd.read_csv(FINANCIAL_REPORT_ROOT_PATH + "dividend/" + "Data_record",
+                                      sep=" ", header=None)
+        elif data_type == 7:
+            finished_df = pd.read_csv(FINANCIAL_REPORT_ROOT_PATH + "fina_indicator/" + "Data_record",
+                                      sep=" ", header=None)
+        elif data_type == 8:
+            finished_df = pd.read_csv(FINANCIAL_REPORT_ROOT_PATH + "fina_audit/" + "Data_record",
+                                      sep=" ", header=None)
+        else:
+            finished_df = pd.read_csv(FINANCIAL_REPORT_ROOT_PATH + "fina_mainbz/" + "Data_record",
+                                      sep=" ", header=None)
+    except Exception as e:
+        print(e)
+        finished_df = None
 
-    finished_list = finished_df.loc[(finished_df[2] == "Done")].loc[:, 0].tolist()
+    if finished_df is None:
+        finished_list = []
+    else:
+        finished_list = finished_df.loc[(finished_df[2] == "Done")].loc[:, 0].tolist()
     difference_list = list(set(selected_stock_list).difference(set(finished_list)))
     for stock_code in difference_list:
         financial_data_processor(stock_code, data_type)
 
 
-financial_data_traverse(1)
+financial_data_traverse(7)
 print("all data saved")

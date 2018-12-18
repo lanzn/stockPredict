@@ -1,14 +1,21 @@
+# TODO:添加表自由拼接函数
+# TODO:修改流程，使过程可以重复执行
+
 import datetime
 import numpy as np
 import pandas as pd
 import tushare as ts
 import time
 
-
 COMMON_ROOT_PATH = "../../data/Common/"
 QUOTATION_ROOT_PATH = "../../data/Quotation_side/"
 FINANCIAL_REPORT_ROOT_PATH = "../../data/Financial_side/"
 TRAIN_TEST_ROOT_PATH = "../../data/Train&Test/"
+
+# 每次生成数据之前，修改这两个参数
+# temp数据和最终输出数据的目标目录
+TARGET_PATH = "1_2_3_7/"
+# 数据集的季度数量
 TRAIN_USE_SEASON_NUM = 4
 
 
@@ -115,13 +122,37 @@ def training_data_creator(stock_code):
     return train_df
 
 
-def selected_stock_traverse():
+def selected_stock_traverse(table_to_concat="1,2,3"):
+    # 解析参数，得到要拼接的表所在的路径列表
+    table_index_list = table_to_concat.split(",")
+    table_path_list = []
+    for index in table_index_list:
+        if index == 1:
+            table_path_list.append("income/")
+        elif index == 2:
+            table_path_list.append("balancesheet/")
+        elif index == 3:
+            table_path_list.append("cashflow/")
+        elif index == 4:
+            table_path_list.append("forecast/")
+        elif index == 5:
+            table_path_list.append("express/")
+        elif index == 6:
+            table_path_list.append("dividend/")
+        elif index == 7:
+            table_path_list.append("fina_indicator/")
+        elif index == 8:
+            table_path_list.append("fina_audit/")
+        else:
+            table_path_list.append("fina_mainbz/")
+
+    # 获取要作为样本的股票代码列表
     selected_stock_df = pd.read_csv(COMMON_ROOT_PATH + "selected_stock.csv")
     selected_stock_list = selected_stock_df.loc[:, "ts_code"].tolist()
     full_train_df = pd.DataFrame()
 
-    # 读取断点续传记录文件
-    train_test_record_file = open(TRAIN_TEST_ROOT_PATH + "Train&Test_data_record", "r")
+    # 读取断点续传记录文件（记录的是原始数据和label进行自由拼接的过程）
+    train_test_record_file = open(TRAIN_TEST_ROOT_PATH + TARGET_PATH + "Data_record", "r")
     lines = train_test_record_file.readlines()
     finished_stock_list = []
     for line in lines:
@@ -143,9 +174,10 @@ def selected_stock_traverse():
                     full_train_df = one_train_df
                 else:
                     full_train_df = full_train_df.append(one_train_df)
-                one_train_df.to_csv(TRAIN_TEST_ROOT_PATH + str(stock_code) + ".csv", index=False, index_label=False)
+                one_train_df.to_csv(TRAIN_TEST_ROOT_PATH + TARGET_PATH + str(stock_code) + ".csv",
+                                    index=False, index_label=False)
                 print(str(stock_code) + " data process OK!")
-                train_test_record_file = open(TRAIN_TEST_ROOT_PATH + "Train&Test_data_record", "a")
+                train_test_record_file = open(TRAIN_TEST_ROOT_PATH + TARGET_PATH + "Train&Test_data_record", "a")
                 train_test_record_file.write(str(stock_code) + " data process OK!" + "\n")
                 train_test_record_file.close()
         else:
@@ -158,7 +190,7 @@ def train_data_concator():
     full_train_df = pd.DataFrame()
     for stock_code in selected_stock_list:
         try:
-            one_stock_df = pd.read_csv(TRAIN_TEST_ROOT_PATH + str(stock_code) + ".csv")
+            one_stock_df = pd.read_csv(TRAIN_TEST_ROOT_PATH + TARGET_PATH + str(stock_code) + ".csv")
             if one_stock_df.empty:
                 print(stock_code + ".csv is empty!")
                 continue
@@ -172,9 +204,11 @@ def train_data_concator():
             print(stock_code + " error!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
             print(e)
             continue
-    full_train_df.to_csv(TRAIN_TEST_ROOT_PATH + "full_train_set_one_season.csv", index=False, index_label=False)
+    full_train_df.to_csv(TRAIN_TEST_ROOT_PATH + TARGET_PATH + "full_train_set_one_season.csv",
+                         index=False, index_label=False)
 
 
-selected_stock_traverse()
+# 参数为要参与拼接的表
+selected_stock_traverse(table_to_concat="1,2,3,7")
 train_data_concator()
 print("data all ok!")

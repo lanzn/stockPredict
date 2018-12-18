@@ -5,6 +5,8 @@ import time
 
 COMMON_ROOT_PATH = "../../data/Common/"
 QUOTATION_ROOT_PATH = "../../data/Quotation_side/"
+
+# 每次获取数据前修改日期参数
 START_DATE = "20140101"
 END_DATE = "20181231"
 
@@ -21,7 +23,7 @@ def quotation_data_daily_processor(stock_code):
 
         # save data record to file
         now_time = time.strftime('%Y-%m-%d', time.localtime(time.time()))
-        quotation_record_file = open(QUOTATION_ROOT_PATH + "Quotation_data_record", "w")
+        quotation_record_file = open(QUOTATION_ROOT_PATH + "Data_record", "a")
         quotation_record_file.write(stock_code + " " + now_time + " Done" + "\n")
         quotation_record_file.close()
         print(stock_code + " daily quotation data saved")
@@ -29,8 +31,8 @@ def quotation_data_daily_processor(stock_code):
     except Exception as e:
         print(e)
         now_time = time.strftime('%Y-%m-%d', time.localtime(time.time()))
-        quotation_record_file = open(QUOTATION_ROOT_PATH + "Quotation_data_record", "w")
-        quotation_record_file.write(stock_code + " " + now_time + " Error : " + e + "\n")
+        quotation_record_file = open(QUOTATION_ROOT_PATH + "Data_record", "a")
+        quotation_record_file.write(stock_code + " " + now_time + " Error" + "\n")
         quotation_record_file.close()
         time.sleep(2)
 
@@ -38,7 +40,19 @@ def quotation_data_daily_processor(stock_code):
 def selected_stock_traverse():
     selected_stock_df = pd.read_csv(COMMON_ROOT_PATH + "selected_stock.csv")
     selected_stock_list = selected_stock_df.loc[:, "ts_code"].tolist()
-    for stock_code in selected_stock_list:
+
+    try:
+        finished_df = pd.read_csv(QUOTATION_ROOT_PATH + "Data_record", sep=" ", header=None)
+    except Exception as e:
+        print(e)
+        finished_df = None
+
+    if finished_df is None:
+        finished_list = []
+    else:
+        finished_list = finished_df.loc[(finished_df[2] == "Done")].loc[:, 0].tolist()
+    difference_list = list(set(selected_stock_list).difference(set(finished_list)))
+    for stock_code in difference_list:
         quotation_data_daily_processor(stock_code)
 
 
