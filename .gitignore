@@ -1,4 +1,4 @@
 .idea/
 *.csv
-*_data_record
+*_record
 *_test.py
