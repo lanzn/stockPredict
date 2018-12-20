@@ -13,8 +13,8 @@
 # TODO:PCA，因子分析，关联性，GA，随机森林，其他方法并结合。
 
 # TODO:特征工程顺序---数据清洗，（离群点），正态化，标准化，归一化，特征选择
-# PCA降维时，既有onehot特征，又有连续型特征，可以吗？尝试了先把onehot出来的先分出来，剩余特征降维之后再拼上的方案。
-
+# TODO:应该加入【利润表、负债表、现金流量表】，考虑是否用业绩快报代替现在的财务指标数据
+# TODO:可以尝试不onehot，只要特征值之间的距离计算计算得合理，那么使用label encoding也没有问题。
 
 import pandas as pd
 import numpy as np
@@ -313,13 +313,13 @@ if __name__ == '__main__':
     # is_split=1 表示对输入的data_x切割出连续型特征列，否则为不切割全部使用
 
     # PCA，返回的数据中，数值型列没有再次进行归一化
-    data_x_pca, data_y_pca = pca_method(data_x, data_y, feat_labels, 10, is_auto=0, is_split=1)
+    # data_x_pca, data_y_pca = pca_method(data_x, data_y, feat_labels, 10, is_auto=0, is_split=1)
 
     # 卡方检验
     data_x_chi, data_y_chi = chi_method(data_x, data_y, feat_labels, 10, is_split=1)
 
     # 因子分析
-    data_x_fa, data_y_fa = factor_analysis_method(data_x, data_y, feat_labels, 10, is_split=1)
+    # data_x_fa, data_y_fa = factor_analysis_method(data_x, data_y, feat_labels, 10, is_split=1)
 
     # 以下有bug
     # 最大信息系数

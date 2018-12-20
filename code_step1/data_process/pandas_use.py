@@ -13,3 +13,9 @@
 
 # numpy的reshape，-1表示留空，第一位表示行数，第二位表示列数，下面的形式表示把数据变成一列
 # data["label"].values.reshape(-1, 1)
+
+# 按照列名删除dataframe的列
+# df.drop(['B','C'],axis=1,inplace=True)
+
+# dataframe行去重，subset表示考虑的列值，keep表示重复时保留第几个，inplace=True表示直接覆盖原dataframe
+# daily_df.drop_duplicates(subset=["trade_date"], keep='first', inplace=True)
