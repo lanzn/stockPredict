@@ -375,5 +375,5 @@ def train_data_concator():
 # 参数为要参与拼接的表
 selected_stock_traverse(table_to_concat=TABLE_TO_CONCAT)
 print("each data ok!")
-# train_data_concator()
+train_data_concator()
 print("data all ok!")

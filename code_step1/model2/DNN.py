@@ -1,14 +1,24 @@
+#coding:utf-8
+#采用新数据，新逻辑，进行预测
+
+#训练集采用20180331的财报行为得到20186月的涨跌
+#验证集采用20180630的财报行为得到20189月的涨跌
+
+TARGET_PATH = "../../data/Train&Test/new_test/"
+TRAIN_FILE_NAME="full_train_set.csv"
+TRAIN_FILE=TARGET_PATH+TRAIN_FILE_NAME
+VALID_FILE_NAME="full_validate_set.csv"
+VALID_FILE= TARGET_PATH+VALID_FILE_NAME
+
 import tensorflow as tf
 import pandas as pd
 import numpy as np
 import argparse
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import MinMaxScaler,StandardScaler
+from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split,cross_val_score
 from sklearn.utils import shuffle
 from sklearn import preprocessing
-import feature_selection
-from sklearn.metrics import classification_report,f1_score,roc_auc_score,accuracy_score
-
 
 #
 parser = argparse.ArgumentParser()
@@ -16,74 +26,82 @@ parser.add_argument('--batch_size', default=100, type=int, help='batch size')
 parser.add_argument('--train_steps', default=1000, type=int,
                     help='number of training steps')
 
-File1="../../data/Train&Test/full_train_set.csv"
 
 
-
-#给end_date_1编码，将end_date_1作为特征之一  auc达到0.72，f1达到0.64
 def main(argv):
     args = parser.parse_args(argv[1:])
 
+    #训练集数据处理
+    f1=open(TRAIN_FILE)
+    traindata=pd.read_csv(f1)
+    # 计数正负样本比例
+    cunt = traindata[traindata.label == 1]["ts_code"]  # 192正例，共1710
+    train_zhengnum = cunt.shape[0]
+    train_funum = traindata.shape[0] - train_zhengnum
+    # 加以区分SH和SZ的股票
+    traindata["type"] = traindata["ts_code"].map(lambda x: 'SZ' if 'SZ' in x else 'SH')
+    stocktype = pd.get_dummies(traindata["type"], prefix="type")
+    traindata = traindata.drop(["type"], axis=1)
+    traindata = pd.concat([traindata, stocktype], axis=1, join="outer")
+    #提取x，y
+    train_y=pd.DataFrame(traindata["label"])
+    dropcol=["label","ann_date_1","f_ann_date_1","end_date_1"]
+    train_x=traindata.drop(dropcol,axis=1)
+    #缺失值填充，数据标准化、缩放
+    train_x = train_x.fillna(0)
+    colnames = train_x.columns.values.tolist()
+    scaler = StandardScaler()
+    for colname in colnames:
+        if colname == "ts_code":
+            pass
+        else:
+            train_x[colname]=scaler.fit_transform(np.array(train_x[colname]).reshape(-1,1))
 
-    f1=open(File1)
-    #f1=open("../../data/Train&Test/full_train_set_boxcox.csv")
-    data=pd.read_csv(f1)
-    datay=pd.DataFrame(data["label"])
-
-    #保留ts_code列
-    ts_code=pd.DataFrame(data["ts_code"])
-
-    # 保留type列
-    data["type"]=data["ts_code"].map(lambda x:'SZ' if 'SZ' in x else 'SH')
-    stocktype=pd.get_dummies(data["type"],prefix="type")
-
-    #保留end_date_1列
-    end_date_1=pd.get_dummies(data["end_date_1"],prefix="end_date")
-
-    #对剩下列进行pca 降维到40维
-    dropcol = ["ts_code","type", "label", "ann_date_1", "end_date_1", "ann_date_2", "end_date_2", "ann_date_3", "end_date_3",
-               "ann_date_4","end_date_4"]
-    data_x = data.drop(dropcol, axis=1)
-    feat_labels = data_x.columns.values.tolist()
-    data_x_chi, data_y_chi = feature_selection.chi_method(data_x, datay, feat_labels,1, is_split=0)
-
-    ndcol=[]
-    for i in range(1):
-        s="feature_chi_"+str(i)
-        ndcol.append(s)
-
-    data_x_chi=pd.DataFrame(data_x_chi,columns=ndcol)
-
-    randomtest=np.random.rand(19834,1)
-    datarandom=pd.DataFrame(randomtest,columns=["rand_1"])
-
-    #datax=datarandom
-    datax = pd.concat([ts_code, stocktype, end_date_1], axis=1)
-    datax=pd.concat([ts_code,stocktype,end_date_1,data_x_chi],axis=1)
+    #验证集数据处理
+    f2 = open(VALID_FILE)
+    validdata = pd.read_csv(f2)
+    # 计数正负比例
+    val_zheng = validdata[validdata.label == 1]
+    val_fu = validdata[validdata.label == 0]
+    cunt2 = validdata[validdata.label == 1]["ts_code"]  # 481正例
+    # 调整验证集的分布
+    val_zhengnum = cunt2.shape[0]
+    val_funum = validdata.shape[0] - val_zhengnum
+    val_new_zheng = int(val_funum * (train_zhengnum / train_funum))
+    select_val_zheng = val_zheng.sample(n=val_new_zheng)
+    validdata = pd.concat([select_val_zheng, val_fu], axis=0).reset_index(drop=True)
+    # 加以区分SH和SZ的股票
+    validdata["type"] = validdata["ts_code"].map(lambda x: 'SZ' if 'SZ' in x else 'SH')
+    stocktype = pd.get_dummies(validdata["type"], prefix="type")
+    validdata = validdata.drop(["type"], axis=1)
+    validdata = pd.concat([validdata, stocktype], axis=1, join="outer")
+    # 提取x，y
+    valid_y = pd.DataFrame(validdata["label"])
+    dropcol = ["label", "ann_date_1", "f_ann_date_1", "end_date_1"]
+    valid_x = validdata.drop(dropcol, axis=1)
+    # 缺失值填充，数据标准化、缩放
+    valid_x = valid_x.fillna(0)
+    colnames = valid_x.columns.values.tolist()
+    scaler = StandardScaler()
+    for colname in colnames:
+        if colname == "ts_code":
+            pass
+        else:
+            valid_x[colname] = scaler.fit_transform(np.array(valid_x[colname]).reshape(-1, 1))
 
 
+
+
+    print(train_x.info())
+    print(train_x.shape)#440列
     f1.close()
-
-
-
-
-
-    # 划分训练集，验证集
-    train_x, valid_x, train_y, valid_y = train_test_split(datax, datay, test_size=0.25, random_state=100)  # 默认0.25的验证集
-
 
     def dataframetodict(df):
         df=df.fillna(0)
         re = {}
         colnames = df.columns.values.tolist()
-        scaler = MinMaxScaler()
         for colname in colnames:
-            re[colname]=np.array(df[colname])
-            # if colname=="ts_code" or "end_date"  in colname or "type" in colname:
-            #     re[colname] = np.array(df[colname])
-            # else:
-            #     re[colname] = scaler.fit_transform(np.array(df[colname]).reshape(-1,1))#区间缩放法
-                #re[colname] = preprocessing.scale(np.array(df[colname]).reshape(-1,1))
+            re[colname] = np.array(df[colname])
         return re
     #train_x=dataframetodict(train_x)
     #print(train_x)
@@ -95,22 +113,10 @@ def main(argv):
             column1=tf.feature_column.categorical_column_with_hash_bucket(key="ts_code",hash_bucket_size = 30)
             column1=tf.feature_column.indicator_column(column1)
             my_feature_columns.append(column1)
-        # elif key=="type":
-        #     column2=tf.feature_column.categorical_column_with_vocabulary_list(key="type",vocabulary_list=["SZ", "SH"])
-        #     column2 = tf.feature_column.indicator_column(column2)
-        #     my_feature_columns.append(column2)
         else:
             col=tf.feature_column.numeric_column(key=key)
             my_feature_columns.append(col)
-    #shape会创建单个值（标量) 一个x对应84维特征
 
-
-    # train_input_fn = tf.estimator.inputs.numpy_input_fn({"x": np.array(train_x)}, np.array(train_y), batch_size=100, num_epochs=None,
-    #                                                     shuffle=True)
-    #
-    # eval_input_fn = tf.estimator.inputs.numpy_input_fn({"x": np.array(valid_x)}, np.array(valid_y),
-    #                                                     num_epochs=1,
-    #                                                     shuffle=False)
 
     def train_input_fn(features, labels, batch_size):
         """An input function for training"""
@@ -159,7 +165,7 @@ def main(argv):
         # optimizer=tf.train.AdamOptimizer(
         #     learning_rate=1e-7
         # ),
-        #model_dir="./MLP_hash=30_batch=50_epoch=5000_shsz_chi",
+        model_dir="./DNN_hash=30_batch=50_epoch=5000_shsz_tongfb",
         # config=my_checkpointing_config,
     )
             #model_dir="./model")
@@ -175,7 +181,7 @@ def main(argv):
             input_fn=lambda :eval_input_fn(valid_x,np.array(valid_y),50))
 
 
-    predictions=classifier.predict(input_fn=lambda :eval_input_fn(valid_x,labels=None,batch_size=50),)
+    predictions=classifier.predict(input_fn=lambda :eval_input_fn(valid_x,labels=None,batch_size=50))
     predictions = list(predictions)
     pre = []
     for i in predictions:
@@ -184,6 +190,7 @@ def main(argv):
     confmat = classification_report(y_true=valid_y, y_pred=pre)
     print(confmat)
     print("预测结果：",list(predictions)[0])
+
 
     precision = eval_result["precision"]
     recall = eval_result["recall"]
