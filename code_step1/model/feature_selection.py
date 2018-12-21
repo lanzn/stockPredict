@@ -16,6 +16,8 @@
 # TODO:应该加入【利润表、负债表、现金流量表】，考虑是否用业绩快报代替现在的财务指标数据
 # TODO:可以尝试不onehot，只要特征值之间的距离计算计算得合理，那么使用label encoding也没有问题。
 
+# TODO:改成适应现在新数据的
+
 import pandas as pd
 import numpy as np
 
@@ -35,153 +37,173 @@ from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
 from sklearn.datasets import load_iris
 
-FULL_TRAIN_TEST_DATASET_PATH = "../../data/Train&Test/full_train_set.csv"
+TARGET_PATH = "new_test/"
+TRAIN_DATASET_PATH = "../../data/Train&Test/" + TARGET_PATH + "full_train_set.csv"
+VALIDATE_DATASET_PATH = "../../data/Train&Test/" + TARGET_PATH + "full_validate_set.csv"
+DROP_COLS = ["ts_code", "ann_date_1", "f_ann_date_1", "end_date_1", "label"]
 
 
 def process_data():
     # 读取dataset
-    data = pd.read_csv(FULL_TRAIN_TEST_DATASET_PATH)
+    train_data = pd.read_csv(TRAIN_DATASET_PATH)
+    validate_data = pd.read_csv(VALIDATE_DATASET_PATH)
+    split_index = train_data.shape[0]
+    full_data = pd.concat([train_data, validate_data], axis=0)
+    full_data = full_data.reset_index(drop=True)
+    # TODO:获取trainset和validateset的边界，并将他们纵向连接在一起，参与后续处理，处理后再拆开
 
     # 增加"type"特征列
-    data["type"] = data["ts_code"].map(lambda x: 'SZ' if 'SZ' in x else 'SH')
-    stocktype = pd.get_dummies(data["type"], prefix="type")
-    data = data.drop(["type"], axis=1)
-    data = pd.concat([data, stocktype], axis=1, join="outer")
+    # train_data["type"] = train_data["ts_code"].map(lambda x: 'SZ' if 'SZ' in x else 'SH')
+    # stocktype = pd.get_dummies(train_data["type"], prefix="type")
+    # train_data = train_data.drop(["type"], axis=1)
+    # train_data = pd.concat([train_data, stocktype], axis=1, join="outer")
 
     # 将"ts_code"列哈希到30种以后拼接到原数据集上
-    ts_code_30 = data["ts_code"].map(lambda x: (hash(x)) % 30)
+    ts_code_30 = full_data["ts_code"].map(lambda x: (hash(x)) % 30)
     ts_code_30 = pd.get_dummies(ts_code_30, prefix="ts_code_30")
-    data = pd.concat([ts_code_30, data], axis=1)
+    full_data = pd.concat([ts_code_30, full_data], axis=1)
 
     # 对"end_date_1"进行onehot
-    end_date_1 = pd.get_dummies(data["end_date_1"], prefix="end_date")
-    data = data.drop(["end_date_1"], axis=1)
-    data = pd.concat([data, end_date_1], axis=1, join="outer")
+    # end_date_1 = pd.get_dummies(train_data["end_date_1"], prefix="end_date")
+    # train_data = train_data.drop(["end_date_1"], axis=1)
+    # train_data = pd.concat([train_data, end_date_1], axis=1, join="outer")
 
     # 删除没用的列
-    dropcol = ["ts_code", "label", "ann_date_1", "ann_date_2", "end_date_2", "ann_date_3", "end_date_3", "ann_date_4",
-               "end_date_4"]
-    data_x = data.drop(dropcol, axis=1)
-    data_y = pd.DataFrame(data["label"])
-    return data_x, data_y, data
+    data_y = pd.DataFrame(full_data["label"])
+    data_x = full_data.drop(DROP_COLS, axis=1)
+
+    # 把数据再重新按trainset和validateset切分开
+    train_x = data_x.ix[:split_index - 1, :]
+    validate_x = data_x.ix[split_index:, :].reset_index(drop=True)
+    train_y = data_y.ix[:split_index - 1, :]
+    validate_y = data_y.ix[split_index:, :].reset_index(drop=True)
+    return train_x, train_y, validate_x, validate_y
 
 
-def pca_method(data_x, data_y, feat_labels, pca_threshold, is_auto=1, is_split=1):
+def pca_method(train_x, train_y, validate_x, validate_y, feat_labels, pca_threshold, is_auto=1, is_split=1):
     # 缺失值填充
-    # data_x = data_x.fillna(data_x.mean())
-    data_x = data_x.fillna(0)
-    data_x = data_x.values
+    train_x = train_x.fillna(0)
+    train_x = train_x.values
+    validate_x = validate_x.fillna(0)
+    validate_x = validate_x.values
+
     # 归一化，之前必须保证没有空值，之后自动变成ndarray
     scaler = MinMaxScaler()
-    data_x = scaler.fit_transform(data_x)
+    train_x = scaler.fit_transform(train_x)
+    validate_x = scaler.fit_transform(validate_x)
+
     # dataframe变成没有标签的ndarray，以便可以输入模型
-    data_y = data_y.values
+    train_y = train_y.values
+    validate_y = validate_y.values
 
     if is_split == 1:
         # 先把onehot列单独拿出来
-        # onehot_data_x_left = data_x[:, :30]
-        data_x_mid = data_x[:, 30:454]
-        # onehot_data_x_right = data_x[:, 454:]
+        # onehot_train_x_left = train_x[:, :30]
+        train_x_mid = train_x[:, 30:454]
+        # onehot_train_x_right = train_x[:, 454:]
+        # onehot_validate_x_left = validate_x[:, :30]
+        validate_x_mid = validate_x[:, 30:454]
+        # onehot_validate_x_right = validate_x[:, 454:]
+        pass
     else:
-        data_x_mid = data_x
+        train_x_mid = train_x
+        validate_x_mid = validate_x
 
     # PCA
     if is_auto == 1:
         pca = PCA(n_components='mle', whiten=False)
     else:
         pca = PCA(n_components=pca_threshold, whiten=False)
-    pca_data_x = pca.fit(data_x_mid).transform(data_x_mid)
+    selected_train_x = pca.fit(train_x_mid).transform(train_x_mid)
+    print(pca.explained_variance_ratio_)
+    selected_validate_x = pca.fit(validate_x_mid).transform(validate_x_mid)
     print(pca.explained_variance_ratio_)
 
     # 拼接成原数据集
     # data_x = np.hstack((onehot_data_x_left, pca_data_x))
     # data_x = np.hstack((data_x, onehot_data_x_right))
 
-    return pca_data_x, data_y
+    return selected_train_x, train_y, selected_validate_x, validate_y
 
 
-def factor_analysis_method(data_x, data_y, feat_labels, fa_threshold, is_split=1):
+def factor_analysis_method(train_x, train_y, validate_x, validate_y, feat_labels, fa_threshold, is_split=1):
     # 缺失值填充
-    # data_x = data_x.fillna(data_x.mean())
-    data_x = data_x.fillna(0)
-    data_x = data_x.values
+    train_x = train_x.fillna(0)
+    train_x = train_x.values
+    validate_x = validate_x.fillna(0)
+    validate_x = validate_x.values
+
     # 归一化，之前必须保证没有空值，之后自动变成ndarray
     scaler = MinMaxScaler()
-    data_x = scaler.fit_transform(data_x)
+    train_x = scaler.fit_transform(train_x)
+    validate_x = scaler.fit_transform(validate_x)
+
     # dataframe变成没有标签的ndarray，以便可以输入模型
-    data_y = data_y.values
+    train_y = train_y.values
+    validate_y = validate_y.values
 
     if is_split == 1:
         # 先把onehot列单独拿出来
-        # onehot_data_x_left = data_x[:, :30]
-        data_x_mid = data_x[:, 30:454]
-        # onehot_data_x_right = data_x[:, 454:]
+        # onehot_train_x_left = train_x[:, :30]
+        train_x_mid = train_x[:, 30:454]
+        # onehot_train_x_right = train_x[:, 454:]
+        # onehot_validate_x_left = validate_x[:, :30]
+        validate_x_mid = validate_x[:, 30:454]
+        # onehot_validate_x_right = validate_x[:, 454:]
+        pass
     else:
-        data_x_mid = data_x
+        train_x_mid = train_x
+        validate_x_mid = validate_x
 
     # factor_analysis
     fa = FactorAnalysis(n_components=fa_threshold)
-    fa_data_x = fa.fit(data_x_mid).transform(data_x_mid)
-    return fa_data_x, data_y
+    selected_train_x = fa.fit(train_x_mid).transform(train_x_mid)
+    selected_validate_x = fa.fit(validate_x_mid).transform(validate_x_mid)
+    return selected_train_x, train_y, selected_validate_x, validate_y
 
 
-def chi_method(data_x, data_y, feat_labels, chi_threshold, is_split=1):
+def chi_method(train_x, train_y, validate_x, validate_y, feat_labels, chi_threshold, is_split=1):
     # 缺失值填充
-    # data_x = data_x.fillna(data_x.mean())
-    data_x = data_x.fillna(0)
-    data_x = data_x.values
+    train_x = train_x.fillna(0)
+    train_x = train_x.values
+    validate_x = validate_x.fillna(0)
+    validate_x = validate_x.values
+
     # 归一化，之前必须保证没有空值，之后自动变成ndarray
     scaler = MinMaxScaler()
-    data_x = scaler.fit_transform(data_x)
+    train_x = scaler.fit_transform(train_x)
+    validate_x = scaler.fit_transform(validate_x)
+
     # dataframe变成没有标签的ndarray，以便可以输入模型
-    data_y = data_y.values
+    train_y = train_y.values
+    validate_y = validate_y.values
 
     if is_split == 1:
         # 先把onehot列单独拿出来
-        # onehot_data_x_left = data_x[:, :30]
-        data_x_mid = data_x[:, 30:454]
-        feat_labels = feat_labels[30:454]
-        # onehot_data_x_right = data_x[:, 454:]
+        # onehot_train_x_left = train_x[:, :30]
+        train_x_mid = train_x[:, 30:454]
+        # onehot_train_x_right = train_x[:, 454:]
+        # onehot_validate_x_left = validate_x[:, :30]
+        validate_x_mid = validate_x[:, 30:454]
+        # onehot_validate_x_right = validate_x[:, 454:]
+        pass
     else:
-        data_x_mid = data_x
+        train_x_mid = train_x
+        validate_x_mid = validate_x
 
     # 卡方检验法，注意，这个是针对分类问题使用的
     # 选择K个最好的特征，返回选择特征后的数据
-    temp_result = SelectKBest(chi2, k=chi_threshold).fit(data_x_mid, data_y)
-    selected_index_list = temp_result.get_support(indices=True)
-    score_list = temp_result.scores_.tolist()
-    score_dict = {}
-    for index, label in enumerate(feat_labels):
-        print(str(index) + " : " + str(label))
-        score_dict[label] = score_list[index]
-    sorted_score_dict = sorted(score_dict.items(), key=lambda item: item[1], reverse=True)
-    selected_data_x = SelectKBest(chi2, k=chi_threshold).fit_transform(data_x_mid, data_y)
-
-    # threshold=10时，选到的特征为[5,16,80,186,292,320,321,332,334,398]
-    # surplus_rese_ps_1
-    # assert_turn_1
-    # fixed_assets_1
-    # fixed_assets_2
-    # fixed_assets_3
-    # total_revenue_ps_4
-    # revenue_ps_4
-    # ca_turn_4
-    # assets_turn_4
-    # fixed_assets_4
-
-    # 排序后的特征为
-    # 'ca_turn_4' :             10.706118228843835      流动资产周转率_4
-    # 'assets_turn_4' :         7.817477658077262       总资产周转率_4
-    # 'total_revenue_ps_4' :    5.123831282832661       每股营业总收入_4
-    # 'revenue_ps_4' :          5.096661116892932       每股营业收入_4
-    # 'assets_turn_1' :         3.3288899118747106      总资产周转率_1
-    # 'fixed_assets_2' :        3.285283662717915       固定资产合计_2
-    # 'fixed_assets_4' :        3.273297318316537       固定资产合计_4
-    # 'fixed_assets_3' :        3.0832010142106023      固定资产合计_3
-    # 'fixed_assets_1' :        3.024284732108817       固定资产合计_1
-    # 'surplus_rese_ps_1' :     2.9725377340171093      每股盈余公积_1
-
-    return selected_data_x, data_y
+    # temp_result = SelectKBest(chi2, k=chi_threshold).fit(train_x_mid, train_y)
+    # selected_index_list = temp_result.get_support(indices=True)
+    # score_list = temp_result.scores_.tolist()
+    # score_dict = {}
+    # for index, label in enumerate(feat_labels):
+    #     print(str(index) + " : " + str(label))
+    #     score_dict[label] = score_list[index]
+    # sorted_score_dict = sorted(score_dict.items(), key=lambda item: item[1], reverse=True)
+    selected_train_x = SelectKBest(chi2, k=chi_threshold).fit_transform(train_x_mid, train_y)
+    selected_validate_x = SelectKBest(chi2, k=chi_threshold).fit_transform(validate_x_mid, validate_y)
+    return selected_train_x, train_y, selected_validate_x, validate_y
 
 
 def mic_method(data_x, data_y, feat_labels, mic_threshold, is_split=1):
@@ -302,9 +324,10 @@ def random_forest_method(data_x, data_y, feat_labels):
 
 if __name__ == '__main__':
     # 处理好x和y
-    data_x, data_y, data = process_data()
+    # data_x, data_y, data = process_data()
+    train_x, train_y, validate_x, validate_y = process_data()
     # 获取所有特征名
-    feat_labels = data_x.columns.values.tolist()
+    feat_labels = train_x.columns.values.tolist()
 
     # 以下各特征选择方法函数的参数解释:
     # data_x, data_y 是dataframe类型的数据
@@ -313,13 +336,19 @@ if __name__ == '__main__':
     # is_split=1 表示对输入的data_x切割出连续型特征列，否则为不切割全部使用
 
     # PCA，返回的数据中，数值型列没有再次进行归一化
-    # data_x_pca, data_y_pca = pca_method(data_x, data_y, feat_labels, 10, is_auto=0, is_split=1)
-
-    # 卡方检验
-    data_x_chi, data_y_chi = chi_method(data_x, data_y, feat_labels, 10, is_split=1)
+    pca_train_x, pca_train_y, pca_validate_x, pca_validate_y = pca_method(train_x, train_y,
+                                                                          validate_x, validate_y, feat_labels,
+                                                                          10, is_auto=0, is_split=1)
 
     # 因子分析
-    # data_x_fa, data_y_fa = factor_analysis_method(data_x, data_y, feat_labels, 10, is_split=1)
+    fa_train_x, fa_train_y, fa_validate_x, fa_validate_y = factor_analysis_method(train_x, train_y,
+                                                                                  validate_x, validate_y, feat_labels,
+                                                                                  10, is_split=1)
+
+    # 卡方检验
+    chi_train_x, chi_train_y, chi_validate_x, chi_validate_y = chi_method(train_x, train_y,
+                                                                          validate_x, validate_y, feat_labels,
+                                                                          10, is_split=1)
 
     # 以下有bug
     # 最大信息系数
