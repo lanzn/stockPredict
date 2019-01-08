@@ -1,6 +1,3 @@
-# TODO:修改流程，使过程可以重复执行
-# TODO:SLIDE_WINDOW现在还不能使用
-
 import datetime
 import numpy as np
 import pandas as pd
@@ -20,7 +17,7 @@ DATE_LIST = ["20130331", "20130630", "20130930", "20131231",
 
 # 每次生成数据之前，修改这几个参数
 # temp数据和最终输出数据的目标目录
-TARGET_PATH = "new_test/"
+TARGET_PATH = "C1S2_newlabel/"
 # 需要连接的表
 TABLE_TO_CONCAT = "1,2,3,7"
 # 数据集的季度数量
@@ -28,8 +25,11 @@ TRAIN_USE_SEASON_NUM = 1
 # 例如想要验证的日期为20180930，季度窗口为2，则训练集起始日期为20171231，验证集起始日期为20180331
 # 训练集起始日期，从[XXXX0331, XXXX0630, XXXX0930, XXXX1231]中选择一个
 VALIDATE_Y_DATE = "20180930"
-# 是否滑动窗口，0代表不滑动
-SLIDE_WINDOW = 0
+# label是读取还是计算，0表示读取
+LABEL_CALCULATE = 0
+LABEL_PATH = "New_Label2/"
+# 滑动窗口大小，0代表不滑动
+SLIDE_WINDOW_SIZE = 2
 
 
 def training_data_creator(stock_code, table_path_list):
@@ -145,11 +145,8 @@ def training_data_creator(stock_code, table_path_list):
             print(e)
             return None, None
 
-    if SLIDE_WINDOW == 1:
-        # TODO:待写
-        return None, None
-    else:
-        # 首先根据所需的日期把对应的数据选取出来，如果取出过程中发现出现异常，则说明该数据再这段时间内是不可用的，放弃
+    if SLIDE_WINDOW_SIZE == 0:
+        # 首先根据所需的日期把对应的数据选取出来，如果取出过程中发现出现异常，则说明该数据在这段时间内是不可用的，放弃
         end_date_index = DATE_LIST.index(VALIDATE_Y_DATE)
         start_date_index = end_date_index - TRAIN_USE_SEASON_NUM - 1
         need_date_list = DATE_LIST[start_date_index:end_date_index + 1]
@@ -195,16 +192,29 @@ def training_data_creator(stock_code, table_path_list):
             if continue_flag == 1:
                 # 先计算好训练集和验证集的两个label,第一个是训练集的label，第二个是验证集的
                 label_list = []
-                for i in range(2):
-                    next_close = full_df.loc[start_index - TRAIN_USE_SEASON_NUM - i, "close"]
-                    pre_close = full_df.loc[start_index - TRAIN_USE_SEASON_NUM + 1 - i, "close"]
-                    if next_close >= pre_close:
-                        label = 1
-                    else:
-                        label = 0
-                    label_list.append(label)
+                if LABEL_CALCULATE == 0:
+                    # 直接读取label
+                    csv_name = stock_code[:6] + "_" + stock_code[7:9] + ".csv"
+                    label_csv = pd.read_csv(COMMON_ROOT_PATH + LABEL_PATH + csv_name)
+                    for i in range(2):
+                        try:
+                            date_to_read = full_df.loc[start_index - TRAIN_USE_SEASON_NUM - i, "end_date"]
+                            selected_label_df = label_csv.loc[(label_csv["jidu_date"] == date_to_read)]
+                            label = selected_label_df.reset_index(drop=True).loc[0, "label"]
+                            label_list.append(label)
+                        except Exception as e:
+                            label_list.append(404)
+                else:
+                    for i in range(2):
+                        next_close = full_df.loc[start_index - TRAIN_USE_SEASON_NUM - i, "close"]
+                        pre_close = full_df.loc[start_index - TRAIN_USE_SEASON_NUM + 1 - i, "close"]
+                        if next_close >= pre_close:
+                            label = 1
+                        else:
+                            label = 0
+                        label_list.append(label)
 
-                # 将制定的季度滑动拼接成两条样本，分别作为训练集样本和验证集样本
+                # 将指定的季度滑动拼接成两条样本，分别作为训练集样本和验证集样本
                 one_line_df_list = []
                 for i in range(2):
                     season = i
@@ -246,6 +256,151 @@ def training_data_creator(stock_code, table_path_list):
         # 重置index
         train_df.reset_index(drop=True)
         validate_df.reset_index(drop=True)
+    else:
+        # 按照SLIDE_WINDOW_SIZE滑动窗口，构建数据集
+
+        # 创建完整数据集
+        slide_train_df = pd.DataFrame()
+        slide_validate_df = pd.DataFrame()
+
+        # 循环进行日期窗口滑动，每次循环生成一个日期的训练集样本和验证集样本
+        for i in range(SLIDE_WINDOW_SIZE):
+            # range(N), if N=4, i will be 0,1,2,3.
+            # 算出当前需要生成样本的日期
+            end_date_index = DATE_LIST.index(VALIDATE_Y_DATE) - (SLIDE_WINDOW_SIZE - i - 1)
+            # 根据所需的日期把对应的数据选取出来，如果取出过程中发现出现异常，则说明该数据在这段时间内是不可用的，放弃
+            start_date_index = end_date_index - TRAIN_USE_SEASON_NUM - 1
+            need_date_list = DATE_LIST[start_date_index:end_date_index + 1]
+            try:
+                # 窗口滑动需要多次使用原数据，所以不能覆盖原数据
+                temp_full_df = full_df.loc[full_df["end_date"].isin(need_date_list), :]
+                temp_full_df = temp_full_df.reset_index(drop=True)
+                if temp_full_df.shape[0] != len(need_date_list):
+                    # 对应日期的数据缺失，继续滑动
+                    print("some season data missing!!! continue slide...")
+                    continue
+            except Exception as e:
+                print(e)
+                continue
+
+            # 窗口不滑动，取最近的数据构造样本集
+            index_count = temp_full_df.shape[0]
+            # 比如训练和验证时使用两个季度的数据，则从index=2开始，向上取出数据
+            start_index = TRAIN_USE_SEASON_NUM + 1
+            # 创建训练集和验证集
+            train_df = pd.DataFrame()
+            validate_df = pd.DataFrame()
+
+            # 验证数据条数是否够用来构造训练集和验证集
+            if index_count < start_index + 1:
+                continue
+            else:
+                # 每次循环得到一条样本，每次先判断N个季度是否连续，若不连续则continue
+                end_date_list = []
+                for season in range(TRAIN_USE_SEASON_NUM):
+                    end_date_list.append(temp_full_df.ix[start_index - season, "end_date"])
+
+                # 检查季度是否连续，continue_flag为0表示不连续，1为连续
+                continue_flag = 1
+                for index, end_date in enumerate(end_date_list):
+                    if index + 1 < TRAIN_USE_SEASON_NUM:
+                        end_date_pre = datetime.datetime.strptime(str(end_date), "%Y%m%d")
+                        end_date_next = datetime.datetime.strptime(str(end_date_list[index + 1]), "%Y%m%d")
+                        days_delta = (end_date_next - end_date_pre).days
+                        if days_delta >= 95:
+                            continue_flag = 0
+                            break
+
+                # 当前窗口中N个季度若连续，则执行拼接，否则该数据不合法，只能舍弃
+                if continue_flag == 1:
+                    # 先计算好训练集和验证集的两个label,第一个是训练集的label，第二个是验证集的
+                    label_list = []
+                    if LABEL_CALCULATE == 0:
+                        # 直接读取label
+                        csv_name = stock_code[:6] + "_" + stock_code[7:9] + ".csv"
+                        label_csv = pd.read_csv(COMMON_ROOT_PATH + LABEL_PATH + csv_name)
+                        for j in range(2):
+                            try:
+                                date_to_read = temp_full_df.loc[start_index - TRAIN_USE_SEASON_NUM - j, "end_date"]
+                                selected_label_df = label_csv.loc[(label_csv["jidu_date"] == date_to_read)]
+                                label = selected_label_df.reset_index(drop=True).loc[0, "label"]
+                                label_list.append(label)
+                            except Exception as e:
+                                label_list.append(404)
+                    else:
+                        for j in range(2):
+                            next_close = temp_full_df.loc[start_index - TRAIN_USE_SEASON_NUM - j, "close"]
+                            pre_close = temp_full_df.loc[start_index - TRAIN_USE_SEASON_NUM + 1 - j, "close"]
+                            if next_close >= pre_close:
+                                label = 1
+                            else:
+                                label = 0
+                            label_list.append(label)
+
+                    # 将指定的季度滑动拼接成两条样本，分别作为训练集样本和验证集样本
+                    one_line_df_list = []
+                    for j in range(2):
+                        season = j
+                        one_line_df = pd.DataFrame()
+                        while season < TRAIN_USE_SEASON_NUM + j:
+                            if one_line_df.empty:
+                                one_line_df = temp_full_df.ix[start_index - season, :].to_frame().T
+                                one_line_df.rename(columns=lambda x: x + "_" + str(season + 1 - j), inplace=True)
+                                # 将ts_code列名字改回来
+                                one_line_df.rename(columns={'ts_code_1': 'ts_code'}, inplace=True)
+                                one_line_df = one_line_df.reset_index(drop=True)
+                            else:
+                                temp_df = temp_full_df.ix[start_index - season, :].to_frame().T
+                                del temp_df['ts_code']
+                                temp_df.rename(columns=lambda x: x + "_" + str(season + 1 - j), inplace=True)
+                                temp_df = temp_df.reset_index(drop=True)
+                                one_line_df = pd.concat([one_line_df, temp_df], axis=1)
+                            season = season + 1
+                        one_line_df_list.append(one_line_df)
+
+                    # 把对应的label拼上,并将生成好的数据集拼接到train_df和validate_df中
+                    for j in range(2):
+                        one_line_df_temp = one_line_df_list[j]
+                        one_line_df_temp["label"] = label_list[j]
+                        if j == 0:
+                            if train_df.empty:
+                                train_df = one_line_df_temp
+                            else:
+                                train_df = train_df.append(one_line_df_temp)
+                        else:
+                            if validate_df.empty:
+                                validate_df = one_line_df_temp
+                            else:
+                                validate_df = validate_df.append(one_line_df_temp)
+                else:
+                    # 当前数据季度不连续，例如[20170331, 20170630, 20171231, 20180331]
+                    # 缺少了一个季度，则不能作为合法数据使用,继续循环，滑动窗口
+                    continue
+
+            # 重置index
+            train_df.reset_index(drop=True)
+            validate_df.reset_index(drop=True)
+
+            # 将新生成的样本拼接到完整数据集中
+            if slide_train_df.empty:
+                slide_train_df = train_df
+            else:
+                slide_train_df = pd.concat([slide_train_df, train_df], axis=0)
+            if slide_validate_df.empty:
+                slide_validate_df = validate_df
+            else:
+                slide_validate_df = pd.concat([slide_validate_df, validate_df], axis=0)
+
+        # 重命名完整样本集
+        if slide_train_df.empty:
+            train_df = None
+        else:
+            train_df = slide_train_df.reset_index(drop=True).sort_index(ascending=False, axis=0)
+        if slide_validate_df.empty:
+            validate_df = None
+        else:
+            validate_df = slide_validate_df.iloc[-1, :].to_frame().T
+
     return train_df, validate_df
 
 
@@ -367,13 +522,24 @@ def train_data_concator():
             print(e)
             continue
 
+    # 删除label有问题的行
+    full_train_df = full_train_df.loc[~(full_train_df["label"] == 404)]
+    full_validate_df = full_validate_df.loc[~(full_validate_df["label"] == 404)]
+
+    # 从验证集中筛掉不对的日期
+    end_date_index = DATE_LIST.index(VALIDATE_Y_DATE)
+    start_date_index = end_date_index - TRAIN_USE_SEASON_NUM
+    target_date = DATE_LIST[start_date_index]
+    full_validate_df = full_validate_df.loc[full_validate_df["end_date_1"] == int(target_date)]
+
+    # 写csv
     full_train_df.to_csv(TRAIN_TEST_ROOT_PATH + TARGET_PATH + "full_train_set.csv", index=False, index_label=False)
     full_validate_df.to_csv(TRAIN_TEST_ROOT_PATH + TARGET_PATH + "full_validate_set.csv",
                             index=False, index_label=False)
 
 
 # 参数为要参与拼接的表
-selected_stock_traverse(table_to_concat=TABLE_TO_CONCAT)
+# selected_stock_traverse(table_to_concat=TABLE_TO_CONCAT)
 print("each data ok!")
 train_data_concator()
 print("data all ok!")

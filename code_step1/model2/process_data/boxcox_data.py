@@ -9,7 +9,7 @@ sns.set_style('darkgrid')
 from scipy import stats
 from scipy.stats import norm, skew
 
-TARGET_PATH = "../../../data/Train&Test/new_test/"
+TARGET_PATH = "../../../data/Train&Test/C1S1_oldlabel/"
 TRAIN_FILE_NAME="full_train_set.csv"
 TRAIN_FILE=TARGET_PATH+TRAIN_FILE_NAME
 VALID_FILE_NAME="full_validate_set.csv"

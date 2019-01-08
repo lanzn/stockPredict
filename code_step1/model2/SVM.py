@@ -3,7 +3,7 @@
 #训练集采用20180331的财报行为得到20186月的涨跌
 #验证集采用20180630的财报行为得到20189月的涨跌
 
-#TARGET_PATH = "../../data/Train&Test/new_test/"
+#TARGET_PATH = "../../data/Train&Test/C1S1_oldlabel/"
 TARGET_PATH = "../../data/Train&Test/new_label2_data/"
 TRAIN_FILE_NAME="full_train_set.csv"
 TRAIN_FILE=TARGET_PATH+TRAIN_FILE_NAME
