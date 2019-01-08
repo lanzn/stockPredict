@@ -4,12 +4,12 @@
 #训练集采用20180331的财报行为得到20186月的涨跌
 #验证集采用20180630的财报行为得到20189月的涨跌
 
-#TARGET_PATH = "../../data/Train&Test/C1S1_oldlabel/"
-#TARGET_PATH = "../../data/Train&Test/new_label2_data/"
+#TARGET_PATH = "../../data/Train&Test/C1S1_oldlabel/"#y是涨跌
+#TARGET_PATH = "../../data/Train&Test/C1S1_newlabel/"#改名叫C1S1了
 #TARGET_PATH = "../../data/Train&Test/C2S1_newlabel/"
 #TARGET_PATH = "../../data/Train&Test/C4S1_newlabel/"
-#TARGET_PATH = "../../data/Train&Test/C1S4_newlabel/"
-TARGET_PATH = "../../data/Train&Test/C1S2_newlabel/"
+TARGET_PATH = "../../data/Train&Test/C1S4_newlabel/"
+#TARGET_PATH = "../../data/Train&Test/C1S2_newlabel/"
 TRAIN_FILE_NAME="full_train_set.csv"
 TRAIN_FILE=TARGET_PATH+TRAIN_FILE_NAME
 VALID_FILE_NAME="full_validate_set.csv"
