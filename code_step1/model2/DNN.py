@@ -4,7 +4,12 @@
 #训练集采用20180331的财报行为得到20186月的涨跌
 #验证集采用20180630的财报行为得到20189月的涨跌
 
-TARGET_PATH = "../../data/Train&Test/new_test/"
+#TARGET_PATH = "../../data/Train&Test/new_test/"
+#TARGET_PATH = "../../data/Train&Test/new_label2_data/"
+#TARGET_PATH = "../../data/Train&Test/C2S1_newlabel/"
+#TARGET_PATH = "../../data/Train&Test/C4S1_newlabel/"
+#TARGET_PATH = "../../data/Train&Test/C1S4_newlabel/"
+TARGET_PATH = "../../data/Train&Test/C1S2_newlabel/"
 TRAIN_FILE_NAME="full_train_set.csv"
 TRAIN_FILE=TARGET_PATH+TRAIN_FILE_NAME
 VALID_FILE_NAME="full_validate_set.csv"
@@ -19,6 +24,7 @@ from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split,cross_val_score
 from sklearn.utils import shuffle
 from sklearn import preprocessing
+import feature_selection as fs
 
 #
 parser = argparse.ArgumentParser()
@@ -64,12 +70,12 @@ def main(argv):
     val_zheng = validdata[validdata.label == 1]
     val_fu = validdata[validdata.label == 0]
     cunt2 = validdata[validdata.label == 1]["ts_code"]  # 481正例
-    # 调整验证集的分布
-    val_zhengnum = cunt2.shape[0]
-    val_funum = validdata.shape[0] - val_zhengnum
-    val_new_zheng = int(val_funum * (train_zhengnum / train_funum))
-    select_val_zheng = val_zheng.sample(n=val_new_zheng)
-    validdata = pd.concat([select_val_zheng, val_fu], axis=0).reset_index(drop=True)
+    # # 调整验证集的分布
+    # val_zhengnum = cunt2.shape[0]
+    # val_funum = validdata.shape[0] - val_zhengnum
+    # val_new_zheng = int(val_funum * (train_zhengnum / train_funum))
+    # select_val_zheng = val_zheng.sample(n=val_new_zheng)
+    # validdata = pd.concat([select_val_zheng, val_fu], axis=0).reset_index(drop=True)
     # 加以区分SH和SZ的股票
     validdata["type"] = validdata["ts_code"].map(lambda x: 'SZ' if 'SZ' in x else 'SH')
     stocktype = pd.get_dummies(validdata["type"], prefix="type")
@@ -89,10 +95,27 @@ def main(argv):
         else:
             valid_x[colname] = scaler.fit_transform(np.array(valid_x[colname]).reshape(-1, 1))
 
+##########################################################################################
+    #如果不降维，后面都不需要
+    #pca降维
+    train_x, train_y, valid_x, valid_y = fs.pca_method(train_x, train_y, valid_x, valid_y, pca_threshold=10, is_auto=0,is_split=0)#ts_code只有一列，没有进行哈希
+    #train_x, train_y, valid_x, valid_y = fs.factor_analysis_method(train_x, train_y, valid_x, valid_y, fa_threshold=10,is_split=0)
+    #train_x, train_y, valid_x, valid_y = fs.chi_method(train_x, train_y, valid_x, valid_y, chi_threshold=10, is_split=0)
+    #降维后归一化
+    scaler = MinMaxScaler()
+    train_x[:,1:] = scaler.fit_transform(train_x[:,1:])
+    valid_x[:,1:] = scaler.fit_transform(valid_x[:,1:])
+    #把ndarray重新转成datafrmae
+    ndcol = ["ts_code"]
+    for i in range(10):
+        s = "feature_pca_" + str(i)
+        ndcol.append(s)
 
+    train_x = pd.DataFrame(train_x, columns=ndcol)
+    valid_x = pd.DataFrame(valid_x , columns=ndcol)
+############################################################################
 
-
-    print(train_x.info())
+    # print(train_x.info())
     print(train_x.shape)#440列
     f1.close()
 
@@ -165,7 +188,7 @@ def main(argv):
         # optimizer=tf.train.AdamOptimizer(
         #     learning_rate=1e-7
         # ),
-        model_dir="./DNN_hash=30_batch=50_epoch=5000_shsz_tongfb",
+        #model_dir="./DNN_hash=30_batch=50_epoch=5000_shsz_tongfb",
         # config=my_checkpointing_config,
     )
             #model_dir="./model")
@@ -186,6 +209,7 @@ def main(argv):
     pre = []
     for i in predictions:
         pre.append(int(i["class_ids"][0]))
+    print("预测出1的数量：",pre.count(1))
     pre = np.array(pre)
     confmat = classification_report(y_true=valid_y, y_pred=pre)
     print(confmat)

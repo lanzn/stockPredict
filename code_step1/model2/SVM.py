@@ -4,10 +4,7 @@
 #验证集采用20180630的财报行为得到20189月的涨跌
 
 #TARGET_PATH = "../../data/Train&Test/new_test/"
-#TARGET_PATH = "../../data/Train&Test/new_label2_data/"
-TARGET_PATH = "../../data/Train&Test/C2S1_newlabel/"
-#TARGET_PATH = "../../data/Train&Test/C1S4_newlabel/"
-#TARGET_PATH = "../../data/Train&Test/C1S2_newlabel/"
+TARGET_PATH = "../../data/Train&Test/new_label2_data/"
 TRAIN_FILE_NAME="full_train_set.csv"
 TRAIN_FILE=TARGET_PATH+TRAIN_FILE_NAME
 VALID_FILE_NAME="full_validate_set.csv"
@@ -19,13 +16,13 @@ import numpy as np
 import argparse
 from sklearn.preprocessing import MinMaxScaler,StandardScaler
 from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC
 from sklearn.metrics import classification_report,f1_score,accuracy_score,roc_auc_score
 from sklearn.model_selection import train_test_split,cross_val_score
 from sklearn.utils import shuffle
 from sklearn import preprocessing
 from sklearn.externals import joblib
 import feature_selection as fs
-
 #
 parser = argparse.ArgumentParser()
 parser.add_argument('--batch_size', default=100, type=int, help='batch size')
@@ -100,7 +97,8 @@ def processdata():
         else:
             valid_x[colname] = scaler.fit_transform(np.array(valid_x[colname]).reshape(-1, 1))
 
-    return train_x,train_y,valid_x,valid_y
+    return train_x, train_y, valid_x, valid_y
+
 
 
 
@@ -108,26 +106,27 @@ def processdata():
 
 
 if __name__ == '__main__':
-    train_x, train_y, valid_x, valid_y=processdata()
+    train_x, train_y, valid_x, valid_y = processdata()
 
     ####################################################
-    #pca降维
-    #train_x, train_y, valid_x, valid_y=fs.pca_method(train_x,train_y,valid_x,valid_y,pca_threshold=10,is_auto=0,is_split=1)
-    train_x, train_y, valid_x, valid_y = fs.factor_analysis_method(train_x, train_y, valid_x, valid_y, fa_threshold=10,is_split=1)
+    # pca降维
+    train_x, train_y, valid_x, valid_y = fs.pca_method(train_x, train_y, valid_x, valid_y, pca_threshold=10, is_auto=0,is_split=1)
+    #train_x, train_y, valid_x, valid_y = fs.factor_analysis_method(train_x, train_y, valid_x, valid_y, fa_threshold=10,is_split=1)
     #train_x, train_y, valid_x, valid_y = fs.chi_method(train_x, train_y, valid_x, valid_y, chi_threshold=10, is_split=1)
-    #降维之后再归一化
+    # 降维之后再归一化
     scaler = MinMaxScaler()
     train_x = scaler.fit_transform(train_x)
     valid_x = scaler.fit_transform(valid_x)
-#########################################################################
-    model = LogisticRegression(penalty="l2")  ###样本失衡，正例样本远比负例样本少，每个分类的权重与该分类在样品中出现的频率成反比。
+    #########################################################################
+
+    # SVM
+    model = SVC(gamma=1, kernel="rbf", C=1000)  ###样本失衡，正例样本远比负例样本少，每个分类的权重与该分类在样品中出现的频率成反比。
     ###sklearn里面逻辑回归默认是用L2正则化项的，我这个模型里面特征很多，数据集很小，所以需要l1正则化
     model.fit(train_x, train_y)
     # #保存模型
     # joblib.dump(model, "./LR_model/model_balanced.m")
     # model=joblib.load("./LR_model/model_balanced.m")
     train_y_pre = model.predict(train_x)
-    print(train_y_pre)
     trainconfmat = classification_report(y_true=train_y, y_pred=train_y_pre)
     print(trainconfmat)
     print("train_acc:", model.score(train_x, train_y))
@@ -143,4 +142,3 @@ if __name__ == '__main__':
     print("f1_score:", f1)
     print("auc_score:", auc)
     print("accuarancy:", accuracy_score(valid_y, valid_pre))
-
