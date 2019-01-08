@@ -19,3 +19,9 @@
 
 # dataframe行去重，subset表示考虑的列值，keep表示重复时保留第几个，inplace=True表示直接覆盖原dataframe
 # daily_df.drop_duplicates(subset=["trade_date"], keep='first', inplace=True)
+
+# dataframe按index排序，如果axis=1则是按列名排序
+# train_df = slide_train_df.reset_index(drop=True).sort_index(ascending=False, axis=0)
+
+# series转dataframe
+# df = se.to_frame().T
