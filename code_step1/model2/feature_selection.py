@@ -16,7 +16,6 @@
 # TODO:应该加入【利润表、负债表、现金流量表】，考虑是否用业绩快报代替现在的财务指标数据
 # TODO:可以尝试不onehot，只要特征值之间的距离计算计算得合理，那么使用label encoding也没有问题。
 
-# TODO:改成适应现在新数据的
 
 import pandas as pd
 import numpy as np
@@ -80,7 +79,7 @@ def process_data():
     return train_x, train_y, validate_x, validate_y
 
 
-def pca_method(train_x, train_y, validate_x, validate_y,  pca_threshold, is_auto=1, is_split=1):
+def pca_method(train_x, train_y, validate_x, validate_y, pca_threshold, is_auto=1, is_split=1):
     # 缺失值填充
     train_x = train_x.fillna(0)
     train_x = train_x.values
@@ -105,9 +104,9 @@ def pca_method(train_x, train_y, validate_x, validate_y,  pca_threshold, is_auto
         validate_x_mid = validate_x[:, 30:454]
         # onehot_validate_x_right = validate_x[:, 454:]
     else:
-        train_ts_code_1 = train_x[:,0]
+        train_ts_code_1 = train_x[:, 0]
         train_x_mid = train_x[:, 1:]
-        valid_ts_code_1 = validate_x[:,0]
+        valid_ts_code_1 = validate_x[:, 0]
         validate_x_mid = validate_x[:, 1:]
 
     # PCA
@@ -127,8 +126,8 @@ def pca_method(train_x, train_y, validate_x, validate_y,  pca_threshold, is_auto
     else:
         # print(train_ts_code_1.reshape(-1,1).shape)
         # print(selected_train_x.shape)
-        selected_train_x = np.hstack((train_ts_code_1.reshape(-1,1), selected_train_x))
-        selected_validate_x = np.hstack((valid_ts_code_1.reshape(-1,1), selected_validate_x))
+        selected_train_x = np.hstack((train_ts_code_1.reshape(-1, 1), selected_train_x))
+        selected_validate_x = np.hstack((valid_ts_code_1.reshape(-1, 1), selected_validate_x))
 
     return selected_train_x, train_y, selected_validate_x, validate_y
 
@@ -140,7 +139,7 @@ def factor_analysis_method(train_x, train_y, validate_x, validate_y, fa_threshol
     validate_x = validate_x.fillna(0)
     validate_x = validate_x.values
 
-    # # 归一化，之前必须保证没有空值，之后自动变成ndarray
+    # 归一化，之前必须保证没有空值，之后自动变成ndarray
     # scaler = MinMaxScaler()
     # train_x = scaler.fit_transform(train_x)
     # validate_x = scaler.fit_transform(validate_x)
@@ -169,25 +168,26 @@ def factor_analysis_method(train_x, train_y, validate_x, validate_y, fa_threshol
     selected_validate_x = fa.fit(validate_x_mid).transform(validate_x_mid)
 
     # 把ts_code再重新拼回来
-    if is_split == 1:#ts_code有30列
+    if is_split == 1:  # ts_code有30列
         selected_train_x = np.hstack((onehot_train_x_left, selected_train_x))
         selected_validate_x = np.hstack((onehot_validate_x_left, selected_validate_x))
-    else:#ts_code只有一列
+    else:  # ts_code只有一列
         # print(train_ts_code_1.reshape(-1,1).shape)
         # print(selected_train_x.shape)
         selected_train_x = np.hstack((train_ts_code_1.reshape(-1, 1), selected_train_x))
         selected_validate_x = np.hstack((valid_ts_code_1.reshape(-1, 1), selected_validate_x))
+
     return selected_train_x, train_y, selected_validate_x, validate_y
 
 
-def chi_method(train_x, train_y, validate_x, validate_y,  chi_threshold, is_split=1):
+def chi_method(train_x, train_y, validate_x, validate_y, chi_threshold, is_split=1):
     # 缺失值填充
     train_x = train_x.fillna(0)
     train_x = train_x.values
     validate_x = validate_x.fillna(0)
     validate_x = validate_x.values
 
-    # # 归一化，之前必须保证没有空值，之后自动变成ndarray
+    # 归一化，之前必须保证没有空值，之后自动变成ndarray
     scaler = MinMaxScaler()
     # train_x = scaler.fit_transform(train_x)
     # validate_x = scaler.fit_transform(validate_x)
@@ -228,11 +228,12 @@ def chi_method(train_x, train_y, validate_x, validate_y,  chi_threshold, is_spli
     if is_split == 1:
         selected_train_x = np.hstack((onehot_train_x_left, selected_train_x))
         selected_validate_x = np.hstack((onehot_validate_x_left, selected_validate_x))
-    else:#ts_code只有一列
+    else:  # ts_code只有一列
         # print(train_ts_code_1.reshape(-1,1).shape)
         # print(selected_train_x.shape)
         selected_train_x = np.hstack((train_ts_code_1.reshape(-1, 1), selected_train_x))
         selected_validate_x = np.hstack((valid_ts_code_1.reshape(-1, 1), selected_validate_x))
+
     return selected_train_x, train_y, selected_validate_x, validate_y
 
 
@@ -241,17 +242,17 @@ def mic_method(data_x, data_y, feat_labels, mic_threshold, is_split=1):
     # data_x = data_x.fillna(data_x.mean())
     data_x = data_x.fillna(0)
     data_x = data_x.values
-    # # 归一化，之前必须保证没有空值，之后自动变成ndarray
-    # scaler = MinMaxScaler()
-    # data_x = scaler.fit_transform(data_x)
+    # 归一化，之前必须保证没有空值，之后自动变成ndarray
+    scaler = MinMaxScaler()
+    data_x = scaler.fit_transform(data_x)
     # dataframe变成没有标签的ndarray，以便可以输入模型
     data_y = data_y.values
 
     if is_split == 1:
         # 先把onehot列单独拿出来
-        onehot_data_x_left = data_x[:, :30]
+        # onehot_data_x_left = data_x[:, :30]
         data_x_mid = data_x[:, 30:454]
-        onehot_data_x_right = data_x[:, 454:]
+        # onehot_data_x_right = data_x[:, 454:]
     else:
         data_x_mid = data_x
 
@@ -297,7 +298,7 @@ def correlation_method(data_x, data_y, feat_labels, select_type=3, is_split=1):
         print("Done")
     elif select_type == 2:
         # 相关系数法，注意，这个是针对回归问题使用的
-        selected_data_x = SelectKBest(lambda X, Y: np.array(list(map(lambda x: pearsonr(x, Y), X.T))).T, k=10)\
+        selected_data_x = SelectKBest(lambda X, Y: np.array(list(map(lambda x: pearsonr(x, Y), X.T))).T, k=10) \
             .fit_transform(data_x_mid, data_y)
     else:
         # 互信息法
@@ -332,7 +333,7 @@ def random_forest_method(data_x, data_y, feat_labels):
     for f in range(train_x.shape[1]):
         # 给予10000颗决策树平均不纯度衰减的计算来评估特征重要性
         now_label_index = indices[f]
-        print("%2d) %-*s %f" % (f+1, 30, feat_labels[now_label_index], feat_importances[now_label_index]))
+        print("%2d) %-*s %f" % (f + 1, 30, feat_labels[now_label_index], feat_importances[now_label_index]))
         importance_dict[feat_labels[now_label_index]] = feat_importances[now_label_index]
 
     # 可视化特征重要性-依据平均不纯度衰减
@@ -354,7 +355,6 @@ def random_forest_method(data_x, data_y, feat_labels):
 
 # if __name__ == '__main__':
 #     # 处理好x和y
-#     # data_x, data_y, data = process_data()
 #     train_x, train_y, validate_x, validate_y = process_data()
 #     # 获取所有特征名
 #     feat_labels = train_x.columns.values.tolist()
@@ -367,17 +367,17 @@ def random_forest_method(data_x, data_y, feat_labels):
 #
 #     # PCA，返回的数据中，数值型列没有再次进行归一化
 #     pca_train_x, pca_train_y, pca_validate_x, pca_validate_y = pca_method(train_x, train_y,
-#                                                                           validate_x, validate_y, feat_labels,
+#                                                                           validate_x, validate_y,
 #                                                                           10, is_auto=0, is_split=1)
 #
 #     # 因子分析
 #     fa_train_x, fa_train_y, fa_validate_x, fa_validate_y = factor_analysis_method(train_x, train_y,
-#                                                                                   validate_x, validate_y, feat_labels,
+#                                                                                   validate_x, validate_y,
 #                                                                                   10, is_split=1)
 #
 #     # 卡方检验
 #     chi_train_x, chi_train_y, chi_validate_x, chi_validate_y = chi_method(train_x, train_y,
-#                                                                           validate_x, validate_y, feat_labels,
+#                                                                           validate_x, validate_y,
 #                                                                           10, is_split=1)
 #
 #     # 以下有bug
