@@ -56,5 +56,9 @@ def selected_stock_traverse():
         quotation_data_daily_processor(stock_code)
 
 
-selected_stock_traverse()
+# selected_stock_traverse()
+index_df = pro.index_daily(ts_code="399300.SZ", start_date=START_DATE, end_date=END_DATE)
+index_df = index_df.drop_duplicates(["trade_date"], keep="first")
+csv_path = QUOTATION_ROOT_PATH + "399300" + "_" + "SZ" + "_" + "quotation.csv"
+index_df.to_csv(csv_path, index=False, index_label=False)
 print("all data saved.")
