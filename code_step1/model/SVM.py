@@ -47,10 +47,11 @@ if __name__ == '__main__':
     # clf = GridSearchCV(SVC(kernel='rbf',gamma=1), tuned_parameters, cv=5,scoring="accuracy")
 
 
-    clf=SVC(gamma=1,kernel="rbf",C=1)
-    clf.fit(train_x,train_y)
-    joblib.dump(clf, "./svm_model/model_qufenszsh.m")
+    # clf=SVC(gamma=1,kernel="rbf",C=1)
+    # clf.fit(train_x,train_y)
+    # joblib.dump(clf, "./svm_model/model_qufenszsh.m")
     # print(clf.best_params_, clf.best_score_)
+    clf=joblib.load("./svm_model/model_qufenszsh.m")
     valid_pre=clf.predict(valid_x)
     confmat=classification_report(y_true=valid_y,y_pred=valid_pre)
     f1=f1_score(y_true=valid_y,y_pred=valid_pre)

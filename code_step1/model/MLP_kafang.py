@@ -6,6 +6,9 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import train_test_split,cross_val_score
 from sklearn.utils import shuffle
 from sklearn import preprocessing
+import feature_selection
+from sklearn.metrics import classification_report,f1_score,roc_auc_score,accuracy_score
+
 
 #
 parser = argparse.ArgumentParser()
@@ -14,37 +17,53 @@ parser.add_argument('--train_steps', default=1000, type=int,
                     help='number of training steps')
 
 File1="../../data/Train&Test/full_train_set.csv"
-File2="../../data/Train&Test/full_train_set_normal.csv"
-File3="../../data/Train&Test/full_train_set_normal_2.csv"
-File4="../../data/Train&Test/full_train_set_normal_3.csv"
-File5="../../data/Train&Test/full_train_set_normal_4.csv"
+
+
 
 #给end_date_1编码，将end_date_1作为特征之一  auc达到0.72，f1达到0.64
 def main(argv):
     args = parser.parse_args(argv[1:])
 
+
     f1=open(File1)
     #f1=open("../../data/Train&Test/full_train_set_boxcox.csv")
     data=pd.read_csv(f1)
-    # data["ts_code"].astype(str)
-    # data = data[data.ts_code.str.find('SH') > 0]
-    cunt = data[data.label == 1].count()
     datay=pd.DataFrame(data["label"])
-    dropcol=["label","ann_date_1","ann_date_2","end_date_2","ann_date_3","end_date_3","ann_date_4","end_date_4"]
-    datax=data.drop(dropcol,axis=1)
 
-    # 加以区分SH和SZ的股票
-    datax["type"]=datax["ts_code"].map(lambda x:'SZ' if 'SZ' in x else 'SH')
-    stocktype=pd.get_dummies(datax["type"],prefix="type")
-    datax = datax.drop(["type"], axis=1)
-    datax = pd.concat([datax, stocktype], axis=1, join="outer")
+    #保留ts_code列
+    ts_code=pd.DataFrame(data["ts_code"])
 
-    end_date_1=pd.get_dummies(datax["end_date_1"],prefix="end_date")
-    datax=datax.drop(["end_date_1"],axis=1)
-    datax=pd.concat([datax,end_date_1],axis=1,join="outer")
-    print(datax.info())
-    print(datax.shape)#440列
+    # 保留type列
+    data["type"]=data["ts_code"].map(lambda x:'SZ' if 'SZ' in x else 'SH')
+    stocktype=pd.get_dummies(data["type"],prefix="type")
+
+    #保留end_date_1列
+    end_date_1=pd.get_dummies(data["end_date_1"],prefix="end_date")
+
+    #对剩下列进行pca 降维到40维
+    dropcol = ["ts_code","type", "label", "ann_date_1", "end_date_1", "ann_date_2", "end_date_2", "ann_date_3", "end_date_3",
+               "ann_date_4","end_date_4"]
+    data_x = data.drop(dropcol, axis=1)
+    feat_labels = data_x.columns.values.tolist()
+    data_x_chi, data_y_chi = feature_selection.chi_method(data_x, datay, feat_labels,1, is_split=0)
+
+    ndcol=[]
+    for i in range(1):
+        s="feature_chi_"+str(i)
+        ndcol.append(s)
+
+    data_x_chi=pd.DataFrame(data_x_chi,columns=ndcol)
+
+    randomtest=np.random.rand(19834,1)
+    datarandom=pd.DataFrame(randomtest,columns=["rand_1"])
+
+    #datax=datarandom
+    datax = pd.concat([ts_code, stocktype, end_date_1], axis=1)
+    datax=pd.concat([ts_code,stocktype,end_date_1,data_x_chi],axis=1)
+
+
     f1.close()
+
 
 
 
@@ -59,10 +78,11 @@ def main(argv):
         colnames = df.columns.values.tolist()
         scaler = MinMaxScaler()
         for colname in colnames:
-            if colname=="ts_code" or "end_date"  in colname or "type" in colname:
-                re[colname] = np.array(df[colname])
-            else:
-                re[colname] = scaler.fit_transform(np.array(df[colname]).reshape(-1,1))
+            re[colname]=np.array(df[colname])
+            # if colname=="ts_code" or "end_date"  in colname or "type" in colname:
+            #     re[colname] = np.array(df[colname])
+            # else:
+            #     re[colname] = scaler.fit_transform(np.array(df[colname]).reshape(-1,1))#区间缩放法
                 #re[colname] = preprocessing.scale(np.array(df[colname]).reshape(-1,1))
         return re
     #train_x=dataframetodict(train_x)
@@ -139,7 +159,7 @@ def main(argv):
         # optimizer=tf.train.AdamOptimizer(
         #     learning_rate=1e-7
         # ),
-        model_dir="./MLP_hash=30_batch=50_epoch=5000_shsz",
+        #model_dir="./MLP_hash=30_batch=50_epoch=5000_shsz_chi",
         # config=my_checkpointing_config,
     )
             #model_dir="./model")
@@ -155,7 +175,14 @@ def main(argv):
             input_fn=lambda :eval_input_fn(valid_x,np.array(valid_y),50))
 
 
-    predictions=classifier.predict(input_fn=lambda :eval_input_fn(valid_x,labels=None,batch_size=50))
+    predictions=classifier.predict(input_fn=lambda :eval_input_fn(valid_x,labels=None,batch_size=50),)
+    predictions = list(predictions)
+    pre = []
+    for i in predictions:
+        pre.append(int(i["class_ids"][0]))
+    pre = np.array(pre)
+    confmat = classification_report(y_true=valid_y, y_pred=pre)
+    print(confmat)
     print("预测结果：",list(predictions)[0])
 
     precision = eval_result["precision"]
