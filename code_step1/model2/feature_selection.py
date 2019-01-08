@@ -36,7 +36,7 @@ from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
 from sklearn.datasets import load_iris
 
-TARGET_PATH = "new_test/"
+TARGET_PATH = "C1S1_oldlabel/"
 TRAIN_DATASET_PATH = "../../data/Train&Test/" + TARGET_PATH + "full_train_set.csv"
 VALIDATE_DATASET_PATH = "../../data/Train&Test/" + TARGET_PATH + "full_validate_set.csv"
 DROP_COLS = ["ts_code", "ann_date_1", "f_ann_date_1", "end_date_1", "label"]
