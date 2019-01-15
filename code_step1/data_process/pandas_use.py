@@ -25,3 +25,7 @@
 
 # series转dataframe
 # df = se.to_frame().T
+
+# 得到列名列表，str型。
+# df.keys()
+
