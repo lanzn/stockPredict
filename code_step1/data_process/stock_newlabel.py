@@ -13,8 +13,8 @@ pd.set_option('display.max_rows', None)
 COMMON_PATH="../../data/Common/selected_stock.csv"
 BASE_STOCK_PATH="../../data/Quotation_side/399300_SZ_quotation.csv"
 STOCK_PATH="../../data/Quotation_side/"
-NEW_PATH="../../data/New_Label/"
-NEW_PATH2="../../data/New_Label2/"
+NEW_PATH="../../data/Common/New_Label/"
+NEW_PATH2="../../data/Common/New_Label2/"
 DATE_LIST = ["20140331", "20140630", "20140930", "20141231",
              "20150331", "20150630", "20150930", "20151231",
              "20160331", "20160630", "20160930", "20161231",
@@ -113,6 +113,12 @@ for stock in common_stock:
         each_l.append(stock_df.ix[i+1]["trade_date"])#基准股交易日期2
         each_l.append((stock_df.ix[i]["close"]-stock_df.ix[i+1]["close"])/stock_df.ix[i+1]["close"])#股票季度收益百分比
         each_l.append((list(base_stock_df[base_stock_df["trade_date"]==each_l[2]]["close"])[0]-list(base_stock_df[base_stock_df["trade_date"]==each_l[3]]["close"])[0])/list(base_stock_df[base_stock_df["trade_date"]==each_l[3]]["close"])[0])#基准季度收益百分比
+        #####################################################
+        #新加4列收益值,为了计算预测的收益率
+        each_l.append(stock_df.ix[i]["close"])#s_date_1的close
+        each_l.append(stock_df.ix[i+1]["close"])  # s_date_2的close
+        each_l.append(stock_df.ix[i]["close"] - stock_df.ix[i + 1]["close"])#股票季度收益值
+        each_l.append(list(base_stock_df[base_stock_df["trade_date"] == each_l[2]]["close"])[0] -list(base_stock_df[base_stock_df["trade_date"] == each_l[3]]["close"])[0])#基准季度收益值
         if each_l[6]>each_l[7]:
             each_l.append(1)
         else:
@@ -122,7 +128,7 @@ for stock in common_stock:
         #判断四个交易日期是否一样。不一样的直接删除
         # if each_l[2] == each_l[4] and each_l[3] == each_l[5]:
         #
-    df=pd.DataFrame(df,columns=["ts_code","jidu_date","s_date_1","s_date_2","b_date_1","b_date_2","s_pct_change","b_pct_change","label"])
+    df=pd.DataFrame(df,columns=["ts_code","jidu_date","s_date_1","s_date_2","b_date_1","b_date_2","s_pct_change","b_pct_change","s_date_1_close","s_date_2_close","s_change","b_change","label"])
     df.to_csv(NEW_PATH2+stock[:-3]+"_"+stock[-2:]+".csv",index=False)
     #df["label"]=df.applymap(lambda x:1 if x["s_pct_change"]>x["b_pct_change"] else 0)
     print(df)

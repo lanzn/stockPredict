@@ -6,14 +6,15 @@
 
 #TARGET_PATH = "../../data/Train&Test/C1S1_oldlabel/"#y是涨跌
 #TARGET_PATH = "../../data/Train&Test/C1S1_newlabel/"#改名叫C1S1了
-#TARGET_PATH = "../../data/Train&Test/C2S1_newlabel/"
+TARGET_PATH = "../../data/Train&Test/C2S1_newlabel/"
 #TARGET_PATH = "../../data/Train&Test/C4S1_newlabel/"
-TARGET_PATH = "../../data/Train&Test/C1S4_newlabel/"
+#TARGET_PATH = "../../data/Train&Test/C1S4_newlabel/"
 #TARGET_PATH = "../../data/Train&Test/C1S2_newlabel/"
 TRAIN_FILE_NAME="full_train_set.csv"
 TRAIN_FILE=TARGET_PATH+TRAIN_FILE_NAME
 VALID_FILE_NAME="full_validate_set.csv"
 VALID_FILE= TARGET_PATH+VALID_FILE_NAME
+NEW_LABEL2_PATH="../../data/Common/New_Label2/"
 
 import tensorflow as tf
 import pandas as pd
@@ -211,6 +212,24 @@ def main(argv):
         pre.append(int(i["class_ids"][0]))
     print("预测出1的数量：",pre.count(1))
     pre = np.array(pre)
+    ################################################
+    # 计算回报率
+    df_pre = pd.DataFrame(pre, columns=["pre_y"])
+    valid_set = pd.read_csv(VALID_FILE)
+    valid_set_pre = pd.concat([valid_set, df_pre], axis=1)
+    select_ts_code = list(valid_set_pre[valid_set_pre["pre_y"] == 1]["ts_code"])  #####选出预测为1的股票列表
+    all_change = 0  #####所有选出的股票的收益值，为分子
+    s_date_2_close_sum = 0  #####所有选出股票上个月的close和，为分母
+    for each_stock in select_ts_code:
+        path = NEW_LABEL2_PATH + each_stock[:-3] + "_" + each_stock[-2:] + ".csv"
+        stock_df = pd.read_csv(path)
+        each_stock_change = stock_df[stock_df["jidu_date"] == 20180930]["s_change"].tolist()[0]
+        all_change += each_stock_change
+        s_date_2_close = stock_df[stock_df["jidu_date"] == 20180930]["s_date_2_close"].tolist()[0]
+        s_date_2_close_sum += s_date_2_close
+    final_shouyilv = all_change / s_date_2_close_sum
+    print("最终回报率：", final_shouyilv)
+    #############################################################################################
     confmat = classification_report(y_true=valid_y, y_pred=pre)
     print(confmat)
     print("预测结果：",list(predictions)[0])
