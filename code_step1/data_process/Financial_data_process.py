@@ -212,5 +212,5 @@ def financial_data_traverse(data_type):
         financial_data_processor(stock_code, data_type)
 
 
-financial_data_traverse(7)
+financial_data_traverse(1)
 print("all data saved")
