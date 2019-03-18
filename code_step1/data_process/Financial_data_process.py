@@ -6,7 +6,7 @@ import time
 COMMON_ROOT_PATH = "../../data/Common/"
 FINANCIAL_REPORT_ROOT_PATH = "../../data/Financial_side/"
 START_DATE = "20140101"
-END_DATE = "20181231"
+END_DATE = "20190301"
 
 pro = ts.pro_api("4b354a4846eb10e1001d4cc575ac51187aac178861d8fe1759c3c33d")
 
@@ -212,5 +212,5 @@ def financial_data_traverse(data_type):
         financial_data_processor(stock_code, data_type)
 
 
-financial_data_traverse(7)
+financial_data_traverse(1)
 print("all data saved")
