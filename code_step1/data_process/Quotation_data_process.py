@@ -8,7 +8,7 @@ QUOTATION_ROOT_PATH = "../../data/Quotation_side/"
 
 # 每次获取数据前修改日期参数
 START_DATE = "20140101"
-END_DATE = "20181231"
+END_DATE = "20190301"
 
 pro = ts.pro_api("4b354a4846eb10e1001d4cc575ac51187aac178861d8fe1759c3c33d")
 
@@ -56,9 +56,10 @@ def selected_stock_traverse():
         quotation_data_daily_processor(stock_code)
 
 
-# selected_stock_traverse()
-index_df = pro.index_daily(ts_code="399300.SZ", start_date=START_DATE, end_date=END_DATE)
-index_df = index_df.drop_duplicates(["trade_date"], keep="first")
-csv_path = QUOTATION_ROOT_PATH + "399300" + "_" + "SZ" + "_" + "quotation.csv"
-index_df.to_csv(csv_path, index=False, index_label=False)
+selected_stock_traverse()
+# index_df = pro.index_daily(ts_code="399300.SZ", start_date=START_DATE, end_date=END_DATE)
+# index_df = index_df.drop_duplicates(["trade_date"], keep="first")
+# csv_path = QUOTATION_ROOT_PATH + "399300" + "_" + "SZ" + "_" + "quotation.csv"
+# index_df.to_csv(csv_path, index=False, index_label=False)
 print("all data saved.")
+
