@@ -8,20 +8,14 @@
 #TARGET_PATH = "../../data/Train&Test/C1S1_newlabel/"#改名叫C1S1了
 #TARGET_PATH = "../../data/Train&Test/C2S1_newlabel/"
 # TARGET_PATH = "../../data/Train&Test/C4S1_newlabel/"
-TARGET_PATH = "../../data/Train&Test/C1S4_newlabel/"#竖着拼四个
-#TARGET_PATH = "../../data/Train&Test/C1S2_newlabel/"
-TRAIN_FILE_NAME="full_train_set.csv"
-TRAIN_FILE=TARGET_PATH+TRAIN_FILE_NAME
-VALID_FILE_NAME="full_validate_set.csv"
-VALID_FILE= TARGET_PATH+VALID_FILE_NAME
-NEW_LABEL2_PATH="../../data/Common/New_Label2/"
+
 
 import tensorflow as tf
 import pandas as pd
 import numpy as np
 import argparse
 from sklearn.preprocessing import MinMaxScaler,StandardScaler
-from sklearn.metrics import classification_report
+from sklearn.metrics import classification_report,roc_auc_score
 from sklearn.model_selection import train_test_split,cross_val_score
 from sklearn.utils import shuffle
 from sklearn import preprocessing
@@ -33,16 +27,16 @@ parser.add_argument('--batch_size', default=100, type=int, help='batch size')
 parser.add_argument('--train_steps', default=1000, type=int,
                     help='number of training steps')
 
+#数据处理函数
+def data_process(train_file,valid_file):
+    # 训练集数据处理
+    f1 = open(train_file)
+    traindata = pd.read_csv(f1)
+    #把后半部分的行情数据去掉
+    colnames=traindata.columns.values.tolist()
+    labelindex=colnames.index("label")
+    traindata=traindata.ix[:,:labelindex+1]
 
-
-
-
-def main(argv):
-    args = parser.parse_args(argv[1:])
-
-    #训练集数据处理
-    f1=open(TRAIN_FILE)
-    traindata=pd.read_csv(f1)
     # 计数正负样本比例
     cunt = traindata[traindata.label == 1]["ts_code"]  # 192正例，共1710
     train_zhengnum = cunt.shape[0]
@@ -52,11 +46,11 @@ def main(argv):
     stocktype = pd.get_dummies(traindata["type"], prefix="type")
     traindata = traindata.drop(["type"], axis=1)
     traindata = pd.concat([traindata, stocktype], axis=1, join="outer")
-    #提取x，y
-    train_y=pd.DataFrame(traindata["label"])
-    dropcol=["label","ann_date_1","f_ann_date_1","end_date_1"]
-    train_x=traindata.drop(dropcol,axis=1)
-    #缺失值填充，数据标准化、缩放
+    # 提取x，y
+    train_y = pd.DataFrame(traindata["label"])
+    dropcol = ["label", "ann_date_1", "f_ann_date_1", "end_date_1"]
+    train_x = traindata.drop(dropcol, axis=1)
+    # 缺失值填充，数据标准化、缩放
     train_x = train_x.fillna(0)
     colnames = train_x.columns.values.tolist()
     scaler = StandardScaler()
@@ -64,11 +58,16 @@ def main(argv):
         if colname == "ts_code":
             pass
         else:
-            train_x[colname]=scaler.fit_transform(np.array(train_x[colname]).reshape(-1,1))
+            train_x[colname] = scaler.fit_transform(np.array(train_x[colname]).reshape(-1, 1))
 
-    #验证集数据处理
-    f2 = open(VALID_FILE)
+    # 验证集数据处理
+    f2 = open(valid_file)
     validdata = pd.read_csv(f2)
+    # 把后半部分的行情数据去掉
+    colnames = validdata.columns.values.tolist()
+    labelindex = colnames.index("label")
+    validdata = validdata.ix[:, :labelindex + 1]
+
     # 计数正负比例
     val_zheng = validdata[validdata.label == 1]
     val_fu = validdata[validdata.label == 0]
@@ -97,13 +96,80 @@ def main(argv):
             pass
         else:
             valid_x[colname] = scaler.fit_transform(np.array(valid_x[colname]).reshape(-1, 1))
+    return train_x,train_y,valid_x,valid_y
+
+
+
+
+
+# 结果分析函数
+def result_analyze(predictions, y_validate, eval_result,targetpath,validfile,newlabel2path):
+    # 取出predictions中的结果
+    predictions_dict = {"class_ids": [], "logits": [], "probabilities": []}
+    for pred in predictions:
+        predictions_dict["class_ids"].append(pred['class_ids'][0])
+        predictions_dict["logits"].append(pred['logits'][0])
+        predictions_dict["probabilities"].append(pred['probabilities'][0])
+
+    # 计算预测出1和0的数量
+    class_ids = []
+    for cid in predictions_dict["class_ids"]:
+        class_ids.append(int(cid))
+    print("预测出1的数量：", class_ids.count(1))
+    print("预测出0的数量：", class_ids.count(0))
+
+    #验证集的时间
+    valid_time=int(targetpath[-9:-1])
+
+    # 计算收益率(written by lzn)
+    pre = np.array(class_ids)
+    df_pre = pd.DataFrame(pre, columns=["pre_y"])
+    valid_set = pd.read_csv(validfile)
+    valid_set_pre = pd.concat([valid_set, df_pre], axis=1)
+    select_ts_code = list(valid_set_pre[valid_set_pre["pre_y"] == 1]["ts_code"])  #####选出预测为1的股票列表
+    all_change = 0  #####所有选出的股票的收益值，为分子
+    s_date_2_close_sum = 0  #####所有选出股票上个月的close和，为分母
+    for each_stock in select_ts_code:
+        path = newlabel2path + each_stock[:-3] + "_" + each_stock[-2:] + ".csv"
+        stock_df = pd.read_csv(path)
+        each_stock_change = stock_df[stock_df["jidu_date"] == valid_time]["s_change"].tolist()[0]
+        all_change += each_stock_change
+        s_date_2_close = stock_df[stock_df["jidu_date"] == valid_time]["s_date_2_close"].tolist()[0]
+        s_date_2_close_sum += s_date_2_close
+    try:
+        final_shouyilv = all_change / s_date_2_close_sum
+    except Exception as e:
+        final_shouyilv = "没有推荐出任何可购入的股票！"
+    print("最终收益率：", final_shouyilv)
+
+    # 计算混淆矩阵(written by lzn)
+    confmat = classification_report(y_true=y_validate, y_pred=pre)
+    print(confmat)
+    print("预测结果标签：", predictions_dict["class_ids"])
+    print("预测原结果：", predictions_dict["probabilities"])
+    precision = eval_result["precision"]
+    recall = eval_result["recall"]
+
+    try:
+        print('Test set auc:', roc_auc_score(y_validate.reshape(-1), pre))
+        print('Test set f1:', 2 * precision * recall / (precision + recall))
+    except Exception as e:
+        print("由于没有推荐出任何可购入的股票， 所以无法计算auc和F1值！")
+    return final_shouyilv,precision,recall,2 * precision * recall / (precision + recall),roc_auc_score(y_validate.reshape(-1), pre)
+
+
+
+def main(trainfile,validfile,targetpath,newlabel2path):
+
+
+    train_x,train_y,valid_x,valid_y=data_process(trainfile,validfile)
 
 ##########################################################################################
     #如果不降维，后面都不需要
     #pca降维
-    #train_x, train_y, valid_x, valid_y = fs.pca_method(train_x, train_y, valid_x, valid_y, pca_threshold=10, is_auto=0,is_split=0)#ts_code只有一列，没有进行哈希
+    train_x, train_y, valid_x, valid_y = fs.pca_method(train_x, train_y, valid_x, valid_y, pca_threshold=10, is_auto=0,is_split=0)#ts_code只有一列，没有进行哈希
     #train_x, train_y, valid_x, valid_y = fs.factor_analysis_method(train_x, train_y, valid_x, valid_y, fa_threshold=10,is_split=0)
-    train_x, train_y, valid_x, valid_y = fs.chi_method(train_x, train_y, valid_x, valid_y, chi_threshold=10, is_split=0)
+    #train_x, train_y, valid_x, valid_y = fs.chi_method(train_x, train_y, valid_x, valid_y, chi_threshold=10, is_split=0)
     #降维后归一化
     scaler = MinMaxScaler()
     train_x[:,1:] = scaler.fit_transform(train_x[:,1:])
@@ -120,7 +186,7 @@ def main(argv):
 
     # print(train_x.info())
     print(train_x.shape)#440列
-    f1.close()
+
 
     def dataframetodict(df):
         df=df.fillna(0)
@@ -209,41 +275,15 @@ def main(argv):
 
     predictions=classifier.predict(input_fn=lambda :eval_input_fn(valid_x,labels=None,batch_size=50))
     predictions = list(predictions)
-    pre = []
-    for i in predictions:
-        pre.append(int(i["class_ids"][0]))
-    print("预测出1的数量：",pre.count(1))
-    pre = np.array(pre)
-    ################################################
-    # 计算回报率
-    df_pre = pd.DataFrame(pre, columns=["pre_y"])
-    valid_set = pd.read_csv(VALID_FILE)
-    valid_set_pre = pd.concat([valid_set, df_pre], axis=1)
-    select_ts_code = list(valid_set_pre[valid_set_pre["pre_y"] == 1]["ts_code"])  #####选出预测为1的股票列表
-    all_change = 0  #####所有选出的股票的收益值，为分子
-    s_date_2_close_sum = 0  #####所有选出股票上个月的close和，为分母
-    for each_stock in select_ts_code:
-        path = NEW_LABEL2_PATH + each_stock[:-3] + "_" + each_stock[-2:] + ".csv"
-        stock_df = pd.read_csv(path)
-        each_stock_change = stock_df[stock_df["jidu_date"] == 20180930]["s_change"].tolist()[0]
-        all_change += each_stock_change
-        s_date_2_close = stock_df[stock_df["jidu_date"] == 20180930]["s_date_2_close"].tolist()[0]
-        s_date_2_close_sum += s_date_2_close
-    final_shouyilv = all_change / s_date_2_close_sum
-    print("最终回报率：", final_shouyilv)
-    #############################################################################################
-    confmat = classification_report(y_true=valid_y, y_pred=pre)
-    print(confmat)
-    print("预测结果：",list(predictions)[0])
+    # 对模型的验证和预测结果进行分析
+    final_shouyilv,precision,recall,f1,auc=result_analyze(predictions, valid_y, eval_result,targetpath,validfile,newlabel2path)
+
+    print("MODEL DONE")
+    return final_shouyilv,precision,recall,f1,auc
 
 
-    precision = eval_result["precision"]
-    recall = eval_result["recall"]
-    print('\nTest set auc: {auc:}\n'.format(**eval_result))
-    print('Test set f1:', 2 * precision * recall / (precision + recall))
-
-if __name__ == '__main__':
-    tf.logging.set_verbosity(tf.logging.INFO)
-    tf.app.run(main)
+# if __name__ == '__main__':
+#     tf.logging.set_verbosity(tf.logging.INFO)
+#     tf.app.run(main)
 
 
